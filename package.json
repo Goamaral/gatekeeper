@@ -1,0 +1,16 @@
+{
+  "name": "web3-sso",
+  "version": "0.1.0",
+  "description": "SSO for web3",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cookie-parser": "^1.4.6",
+    "express": "^4.17.2",
+    "jest": "^27.4.5"
+  }
+}
