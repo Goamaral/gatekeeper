@@ -10,8 +10,6 @@ const defaultGenerateChallenge = () => {
     .digest('hex')
 }
 
-const MINUTE = 60 * 1000
-
 module.exports = class {
   constructor(opts = {}) {
     // Set defaults and validate input
@@ -23,34 +21,25 @@ module.exports = class {
     if (!opts.generateChallenge) opts.generateChallenge = defaultGenerateChallenge
     if (!opts.challengeMessage) opts.challengeMessage = "Login request\n"
 
-    if (!opts.challengeDuration) opts.challengeDuration = MINUTE
-
     // Set properties
     this.store = opts.store
     this.generateChallenge = opts.generateChallenge
     this.challengeMessage = opts.challengeMessage
-    this.challengeDuration = opts.challengeDuration
   }
 
   // Issue challenge
   async issueChallenge(walletAddress) {
     const challenge = `${this.challengeMessage}${this.generateChallenge()}`
 
-    await this.store.set(walletAddress, { challenge, expirestAt: Date.now() + this.challengeDuration })
+    await this.store.set(walletAddress, challenge)
     return challenge
   }
 
   // Validate signed challenge
   async validateSignedChallenge(walletAddress, signedChallenge) {
     // Get challenge from store
-    const { challenge, expirestAt } = await this.store.get(walletAddress)
+    const challenge = await this.store.get(walletAddress)
     if (challenge === null) return false
-
-    // Check if challenge has expired
-    if (expirestAt <= Date.now()) {
-      await this.store.delete(walletAddress)
-      return false
-    }
 
     // Get signer address from signed challenge
     const signerAddress = ethers.utils.verifyMessage(challenge, signedChallenge)

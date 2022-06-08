@@ -2,6 +2,7 @@ window.onload = () => {
   const connectButtonEl = document.getElementById("connect_button")
   const loginButtonEl = document.getElementById("login_button")
   const getAuthUserButtonEl = document.getElementById("get_auth_user")
+  const errorEl = document.getElementById("error")
   const authUserEl = document.getElementById("auth_user")
 
   if (!window.ethereum) {
@@ -26,9 +27,15 @@ window.onload = () => {
 
   // Request challenge, sign it, and authenticate
   loginButtonEl.onclick = async () => {
-    const { challenge } = (await axios.post("/auth/challenge", { wallet_address: walletAddress })).data
-    const signedChallenge = await signer.signMessage(challenge)
-    await axios.post("/auth/login", { wallet_address: walletAddress, signed_challenge: signedChallenge })
+    try {
+      const { challenge } = (await axios.post("/auth/challenge", { wallet_address: walletAddress })).data
+      const signedChallenge = await signer.signMessage(challenge)
+      await axios.post("/auth/login", { wallet_address: walletAddress, signed_challenge: signedChallenge })
+    } catch (err) {
+      errorEl.innerText = `${err.response.statusText}: ${err.response.data.error}`
+    }
+
+
     loginButtonEl.style.display = "none"
   }
 
@@ -38,7 +45,7 @@ window.onload = () => {
       const { user } = (await axios.get("/auth/user")).data
       authUserEl.innerText = JSON.stringify(user)
     } catch (err) {
-      authUserEl.innerText = err.message
+      errorEl.innerText = `${err.response.statusText}: ${err.response.data.error}`
     }
   }
 }
