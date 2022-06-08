@@ -9,14 +9,16 @@ window.onload = () => {
     window.alert("Metamask not installed")
   }
 
+  const provider = new ethers.providers.Web3Provider(window.ethereum)
+
   // TODO: Skip connect if already connected
+  console.log(provider.listAccounts())
   loginButtonEl.style.display = "none"
 
   let signer, walletAddress
 
   // Connect to wallet
   connectButtonEl.onclick = async () => {
-    const provider = new ethers.providers.Web3Provider(window.ethereum)
     provider.send("eth_requestAccounts", [])
     signer = provider.getSigner()
     walletAddress = await signer.getAddress()

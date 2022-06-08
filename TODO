@@ -1,6 +1,6 @@
 TO DO
-- Example client - Simplify file structure, dont have folders with one file
+- Example client - Skip connect if already connected
 
 FUTURE
-- Collect remaining TODO
 - Write tests
+- Save wallet address network

@@ -3,7 +3,7 @@ const ethers = require('ethers')
 
 const MAX_NUMBER = 281474976710655
 
-// REVIEW: Search better wais to generate a challenge
+// REVIEW: Search better ways to generate a challenge
 const defaultGenerateChallenge = () => {
   return crypto.createHash('sha256')
     .update((crypto.randomInt(MAX_NUMBER) * new Date()).toString(10))

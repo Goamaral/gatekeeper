@@ -4,7 +4,7 @@ const { readFileSync } = require('fs')
 const { importPKCS8, importSPKI } = require('jose')
 
 const config = require('./config')
-const routers = require('./routers')
+const router = require('./router')
 
 const main = () => {
   const app = express()
@@ -14,7 +14,7 @@ const main = () => {
   app.use(cookieParser(config.cookie.secret))
   app.use(express.static('public'))
 
-  app.use('/auth', routers.auth)
+  app.use('/auth', router)
 
   app.listen(port, () => console.log(`Example app listening at http://localhost:${port}`))
 }
