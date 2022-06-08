@@ -1,12 +1,12 @@
 const { SignJWT, jwtVerify } = require('jose')
 const Datastore = require('nedb')
-const web3SSO = require('web3-sso')
+const Web3SSO = require('web3-sso')
 
 const config = require('../config')
 
 const db = new Datastore()
 
-class AuthService extends web3SSO.Service {
+class AuthService extends Web3SSO {
   // Generate jwt
   async generateJwt(payload) {
     return await new SignJWT(payload)
@@ -27,7 +27,7 @@ class AuthService extends web3SSO.Service {
   }
 }
 
-module.exports = new AuthService({
+const store = {
   async set(walletAddress, challenge) {
     return new Promise((resolve, reject) => {
       db.update({ walletAddress }, { walletAddress, challenge }, { upsert: true }, err => {
@@ -48,5 +48,15 @@ module.exports = new AuthService({
         }
       })
     })
+  },
+
+  async delete(walletAddress) {
+    return new Promise((resolve, reject) => {
+      db.remove({ walletAddress }, {}, err => {
+        err ? reject(err) : resolve()
+      })
+    })
   }
-})
+}
+
+module.exports = new AuthService({ store })

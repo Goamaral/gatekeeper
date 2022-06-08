@@ -1,8 +1,8 @@
 const router = require('express').Router()
 
-const Service = require('../service')
+const Web3SSO = require('..')
 
-module.exports = (service = new Service()) => {
+module.exports = (service = new Web3SSO()) => {
   // Using a POST to keep client walletAddress private
   router.post('/challenge', async (req, res) => {
     res.json({ challenge: await service.issueChallenge(req.body.wallet_address) })

@@ -15,7 +15,6 @@ const main = () => {
   app.use(express.static('public'))
 
   app.use('/auth', routers.auth)
-  app.use('/private', routers.private)
 
   app.listen(port, () => console.log(`Example app listening at http://localhost:${port}`))
 }

@@ -1,7 +1,8 @@
 window.onload = () => {
-  const challengeInputEl = document.getElementById("challenge_input")
   const connectButtonEl = document.getElementById("connect_button")
   const loginButtonEl = document.getElementById("login_button")
+  const getAuthUserButtonEl = document.getElementById("get_auth_user")
+  const authUserEl = document.getElementById("auth_user")
 
   if (!window.ethereum) {
     window.alert("Metamask not installed")
@@ -10,23 +11,34 @@ window.onload = () => {
   // TODO: Skip connect if already connected
   loginButtonEl.style.display = "none"
 
-  const store = {}
+  let signer, walletAddress
 
+  // Connect to wallet
   connectButtonEl.onclick = async () => {
-    store.account = ethereum.request({ method: 'eth_requestAccounts' })[0]
+    const provider = new ethers.providers.Web3Provider(window.ethereum)
+    provider.send("eth_requestAccounts", [])
+    signer = provider.getSigner()
+    walletAddress = await signer.getAddress()
+
     connectButtonEl.style.display = "none"
     loginButtonEl.style.display = "inline-block"
-
-    const provider = new ethers.providers.Web3Provider(window.ethereum)
-    store.signer = provider.getSigner()
   }
 
+  // Request challenge, sign it, and authenticate
   loginButtonEl.onclick = async () => {
-    const signedChallenge = await store.signer.signMessage(challengeInputEl.value)
-    console.log(signedChallenge)
-    // TODO: Show signed challenge in the browser
-    // TODO: Issue challenge
-    // TODO: Sign challenge
-    // TODO: Show secret
+    const { challenge } = (await axios.post("/auth/challenge", { wallet_address: walletAddress })).data
+    const signedChallenge = await signer.signMessage(challenge)
+    await axios.post("/auth/login", { wallet_address: walletAddress, signed_challenge: signedChallenge })
+    loginButtonEl.style.display = "none"
+  }
+
+  // Get authenticated user
+  getAuthUserButtonEl.onclick = async () => {
+    try {
+      const { user } = (await axios.get("/auth/user")).data
+      authUserEl.innerText = JSON.stringify(user)
+    } catch (err) {
+      authUserEl.innerText = err.message
+    }
   }
 }

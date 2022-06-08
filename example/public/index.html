@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Example app</title>
-    <script src="https://cdn.ethers.io/lib/ethers-5.0.umd.min.js" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.6.8/dist/ethers.umd.min.js" integrity="sha256-AUBwigRyBlJ8/3NDM5lNmYmpMvBXx4mIHdqcT4ARZwI=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@0.27.2/dist/axios.min.js" integrity="sha256-43O3ClFnSFxzomVCG8/NH93brknJxRYF5tKRij3krg0=" crossorigin="anonymous"></script>
+    <script src="index.js"></script>
   </head>
 
   <body>
-    <input type="text" id="challenge_input"/>
     <button type="button" id="connect_button">Connect wallet</button>
     <button type="button" id="login_button">Login with wallet</button>
-    <script src="index.js"></script>
+    <button type="button" id="get_auth_user">Get auth user</button>
+    <pre id="auth_user"></pre>
   </body>
 </html>

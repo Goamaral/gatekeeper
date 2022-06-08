@@ -1,0 +1,7 @@
+TO DO
+- Library - Move expiration logic to example client
+- Example client - Simplify file structure, dont have folders with one file
+
+FUTURE
+- Collect remaining TODO
+- Write tests
