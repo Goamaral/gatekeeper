@@ -1,5 +1,9 @@
 TODO
-- Write tests
+- Write tests src
+  - src/express
+- Search better ways to generate a challenge
+- Try to find jose alternative
+- Write tests example
 - Create frontend SDK
 - Create backend SDK
 - Create example readme
