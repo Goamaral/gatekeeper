@@ -4,7 +4,7 @@ const MINUTE = 60 * 1000
 const db = new Datastore()
 
 module.exports = {
-  async set(walletAddress, challenge) {
+  async set (walletAddress, challenge) {
     return new Promise((resolve, reject) => {
       const data = { walletAddress, challenge, expirestAt: Date.now() + MINUTE }
       db.update({ walletAddress }, data, { upsert: true }, err => {
@@ -13,7 +13,7 @@ module.exports = {
     })
   },
 
-  async get(walletAddress) {
+  async get (walletAddress) {
     return new Promise((resolve, reject) => {
       db.findOne({ walletAddress }, async (err, entry) => {
         if (err) {
@@ -35,7 +35,7 @@ module.exports = {
     })
   },
 
-  async delete(walletAddress) {
+  async delete (walletAddress) {
     return new Promise((resolve, reject) => {
       db.remove({ walletAddress }, {}, err => {
         err ? reject(err) : resolve()

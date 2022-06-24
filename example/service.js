@@ -6,7 +6,7 @@ const store = require('./store')
 
 class AuthService extends Web3SSO {
   // Generate jwt
-  async generateJwt(payload) {
+  async generateJwt (payload) {
     return await new SignJWT(payload)
       .setExpirationTime(config.jwt.expirationTime)
       .setProtectedHeader({ alg: 'ES256' })
@@ -14,7 +14,7 @@ class AuthService extends Web3SSO {
   }
 
   // Validate jwt
-  async validateJwt(jwt) {
+  async validateJwt (jwt) {
     try {
       const { payload } = await jwtVerify(jwt, await config.jwt.publicKey)
       const current = Math.floor(new Date().getTime() / 1000)

@@ -7,7 +7,7 @@ module.exports = async (req, res, next) => {
   // Validate jwt
   const { payload, valid } = await service.validateJwt(jwt)
   if (!valid) {
-    res.status(401).json({ error: "Invalid JWT" })
+    res.status(401).json({ error: 'Invalid JWT' })
   } else {
     req.user = payload.user
     next()
