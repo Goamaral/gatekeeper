@@ -1,5 +1,9 @@
-TO DO
+TODO
 - Write tests
+- Create frontend SDK
+- Create backend SDK
+- Create example readme
+- Pretty example
 
 FUTURE
-- Save wallet address network
+- Handle multiple wallets and chains
