@@ -1,5 +1,6 @@
-# NPM #
+# YARN #
 node_modules/
+yarn-error.log
 
 # JEST #
 coverage/

@@ -1,5 +1,6 @@
-const Service = require('./index')
 const { Wallet } = require('ethers')
+
+const Service = require('./index')
 
 const challengeToken = 'challengeToken'
 const challengeMessage = 'challengeMessage'
