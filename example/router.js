@@ -1,10 +1,12 @@
-const { generateRouter } = require('web3-sso/express')
+const { addRoutes } = require('web3-sso/express')
+const { Router } = require('express')
 
 const config = require('./config')
 const service = require('./service')
 const middleware = require('./middleware')
 
-const router = generateRouter(service)
+const router = Router()
+addRoutes(router, service)
 
 router.post('/login', async (req, res) => {
   try {

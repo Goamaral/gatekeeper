@@ -1,13 +1,8 @@
 const crypto = require('crypto')
 const ethers = require('ethers')
 
-const MAX_NUMBER = 281474976710655
-
-// REVIEW: Search better ways to generate a challenge
 const defaultGenerateChallengeToken = () => {
-  return crypto.createHash('sha256')
-    .update((crypto.randomInt(MAX_NUMBER) * new Date()).toString(10))
-    .digest('hex')
+  return crypto.randomBytes(10).toString('hex')
 }
 
 module.exports = class {
