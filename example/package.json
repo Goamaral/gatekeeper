@@ -6,16 +6,16 @@
   "scripts": {
     "start": "node index.js",
     "generate:jwt_secrets": "./bin/generate_jwt_signing_key",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "./bin/generate_jwt_signing_key"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "cookie-parser": "^1.4.6",
-    "dotenv": "^10.0.0",
+    "dotenv": "^16.0.0",
     "express": "^4.17.2",
     "jose": "^4.3.7",
-    "nedb": "^1.8.0",
-    "web3-sso": "file:../src"
+    "web3-sso": "file:.."
   }
 }

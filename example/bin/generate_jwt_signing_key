@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 const { generateKeyPair, exportPKCS8, exportSPKI } = require('jose')
-const { writeFileSync } = require('fs')
+const { existsSync, mkdirSync, writeFileSync } = require('fs')
 
 async function main() {
+  if (!existsSync('./secrets')) mkdirSync('./secrets')
+
   const { privateKey, publicKey } = await generateKeyPair('ES256')
-  writeFileSync('./secrets/jwt.priv', await exportPKCS8(privateKey))
-  writeFileSync('./secrets/jwt.pub', await exportSPKI(publicKey))
+  if (!existsSync('./secrets/jwt.priv')) writeFileSync('./secrets/jwt.priv', await exportPKCS8(privateKey))
+  if (!existsSync('./secrets/jwt.pub')) writeFileSync('./secrets/jwt.pub', await exportSPKI(publicKey))
 }
 
 main()

@@ -25,7 +25,6 @@ module.exports = class {
   // Issue challenge
   async issueChallenge (walletAddress) {
     const challenge = `${this.challengeMessage}${this.generateChallengeToken()}`
-
     await this.store.set(walletAddress, challenge)
     return challenge
   }
