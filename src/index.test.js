@@ -1,16 +1,16 @@
 const { Wallet } = require('ethers')
 
-const Service = require('./index')
+const { default: Web3SSO } = require('./index')
 
 const challengeToken = 'challengeToken'
 const challengeMessage = 'challengeMessage'
 const wallet = Wallet.createRandom()
 
-describe('Service', () => {
+describe('Web3SSO', () => {
   let service
 
   beforeEach(() => {
-    service = new Service({
+    service = new Web3SSO({
       store: {
         get: jest.fn(),
         set: jest.fn(),
@@ -21,25 +21,9 @@ describe('Service', () => {
     })
   })
 
-  describe('constructor', () => {
-    const validStore = { get () {}, set () {}, delete () {} }
-
-    it('should throw if store does not implement get method', async () => {
-      expect(() => new Service({ store: { ...validStore, get: null } })).toThrow('Store must implement a get method')
-    })
-
-    it('should throw if store does not implement set method', async () => {
-      expect(() => new Service({ store: { ...validStore, set: null } })).toThrow('Store must implement a set method')
-    })
-
-    it('should throw if store does not implement delete method', async () => {
-      expect(() => new Service({ store: { ...validStore, delete: null } })).toThrow('Store must implement a delete method')
-    })
-  })
-
   describe('issueChallenge', () => {
     it('should not throw any exceptions using default options', async () => {
-      service = new Service()
+      service = new Web3SSO()
       await service.issueChallenge(wallet.address)
     })
 

@@ -1,5 +1,7 @@
 {
   "standard.options": {
     "envs": ["jest"]
-  }
+  },
+  "standard.autoFixOnSave": true,
+  "standard.engine": "ts-standard"
 }
