@@ -1,9 +1,6 @@
-# NPM YARN #
-yarn-error.log
-.yarn/*
-!.yarn/releases
-!.yarn/plugins
-.pnp.*
+# NPM PNPM #
+node_modules/
+lib/
 
 # JEST #
 coverage/

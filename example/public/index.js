@@ -60,6 +60,7 @@ window.onload = async () => {
     } catch (err) {
       console.error(err)
       errorEl.innerText = `${err.response.statusText}: ${err.response.data.error}`
+      return
     }
 
     loginButtonEl.style.display = 'none'

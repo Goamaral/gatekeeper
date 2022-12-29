@@ -12,7 +12,7 @@ module.exports = {
     if (!entry) {
       return Promise.reject(new Error(`No challenge for wallet address ${walletAddress} was found`))
     }
-    
+
     const { challenge, expirestAt } = entry
     // Check if challenge has expired
     if (expirestAt <= Date.now()) {
@@ -25,6 +25,6 @@ module.exports = {
 
   async delete (walletAddress) {
     db.delete(walletAddress)
-    return  Promise.resolve()
+    return Promise.resolve()
   }
 }
