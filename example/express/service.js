@@ -1,10 +1,10 @@
-const { SignJWT, jwtVerify } = require('jose')
-const Web3SSO = require('web3-sso')
+import { SignJWT, jwtVerify } from 'jose'
+import Web3SSOBackend from 'web3-sso/backend'
 
-const config = require('./config')
-const store = require('./store')
+import config from './config.js'
+import store from './store.js'
 
-class AuthService extends Web3SSO {
+class AuthService extends Web3SSOBackend {
   // Generate jwt
   async generateJwt (payload) {
     return await new SignJWT(payload)
@@ -25,4 +25,4 @@ class AuthService extends Web3SSO {
   }
 }
 
-module.exports = new AuthService({ store })
+export default new AuthService({ store })

@@ -1,9 +1,7 @@
 TODO
-- Create frontend SDK
-- Create backend SDK
-- Create example readme
+- Use npm instead of pnpm
+- Use SQLite in every implementation
 - Pretty example
 
 FUTURE
 - Handle multiple wallets and chains
-- Typescript

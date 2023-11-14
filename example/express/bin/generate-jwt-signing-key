@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-const { generateKeyPair, exportPKCS8, exportSPKI } = require('jose')
-const { existsSync, mkdirSync, writeFileSync } = require('fs')
+import { generateKeyPair, exportPKCS8, exportSPKI } from 'jose'
+import { existsSync, mkdirSync, writeFileSync } from 'fs'
 
-async function main() {
+async function main () {
   if (!existsSync('./secrets')) mkdirSync('./secrets')
 
   const { privateKey, publicKey } = await generateKeyPair('ES256')

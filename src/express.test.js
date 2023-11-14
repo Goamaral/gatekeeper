@@ -1,8 +1,8 @@
-const express = require('express')
-const request = require('supertest')
-const { Wallet } = require('ethers')
+import express from 'express'
+import request from 'supertest'
+import { Wallet } from 'ethers'
 
-const { addRoutes } = require('./express')
+import { addRoutes } from './express'
 
 const wallet = Wallet.createRandom()
 let app

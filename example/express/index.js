@@ -1,12 +1,12 @@
-const cookieParser = require('cookie-parser')
-const express = require('express')
-const { readFileSync } = require('fs')
-const { importPKCS8, importSPKI } = require('jose')
+import cookieParser from 'cookie-parser'
+import express from 'express'
+import { readFileSync } from 'fs'
+import { importPKCS8, importSPKI } from 'jose'
 
-const config = require('./config')
-const router = require('./router')
+import config from './config.js'
+import router from './router.js'
 
-const main = () => {
+function main () {
   const app = express()
   const port = 3000
 
@@ -19,7 +19,7 @@ const main = () => {
   app.listen(port, () => console.log(`Example app listening at http://localhost:${port}`))
 }
 
-const init = async () => {
+async function init () {
   config.jwt = {
     ...config.jwt,
     privateKey: await importPKCS8(readFileSync('./secrets/jwt.priv').toString(), 'ES256'),

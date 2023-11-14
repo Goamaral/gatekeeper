@@ -1,7 +1,7 @@
 const MINUTE = 60 * 1000
 const db = new Map()
 
-module.exports = {
+export default {
   async set (walletAddress, challenge) {
     db.set(walletAddress, { walletAddress, challenge, expirestAt: Date.now() + MINUTE })
     return Promise.resolve()

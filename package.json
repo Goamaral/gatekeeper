@@ -2,6 +2,7 @@
   "name": "web3-sso",
   "version": "0.1.0",
   "description": "SSO for web3",
+  "type": "module",
   "author": "Gonçalo Amaral",
   "license": "ISC",
   "keywords": [
@@ -9,22 +10,20 @@
     "sso",
     "express"
   ],
-  "files": [
-    "lib/**/*"
-  ],
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
   "scripts": {
     "test": "jest",
     "lint": "ts-standard --fix --env jest",
-    "build": "tsc",
-    "prepare": "npm run build",
-    "prepublishOnly": "npm test && npm run lint",
-    "preversion": "npm run lint",
-    "version": "git add -A src",
+    "build": "./bin/build",
+    "build:esm": "tsc -p ./tsconfig.json && mv dist/esm/index.js dist/esm/index.mjs",
+    "build:cjs": "tsc -p ./tsconfig.cjs.json",
+    "prepare": "pnpm run build",
+    "prepublishOnly": "pnpm test && pnpm run lint",
+    "preversion": "pnpm run lint",
+    "version": "git add .",
     "postversion": "git push && git push --tags"
   },
   "dependencies": {
+    "axios": "^1.6.1",
     "ethers": "^5.7.2",
     "express": "^4.17.2"
   },
@@ -36,5 +35,33 @@
     "ts-jest": "^29.0.3",
     "ts-standard": "^12.0.2",
     "typescript": "^4.9.4"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./frontend": {
+      "import": "./dist/frontend.js",
+      "require": "./dist/cjs/frontend.js",
+      "types": "./dist/frontend.d.ts"
+    },
+    "./backend": {
+      "import": "./dist/backend.js",
+      "require": "./dist/cjs/backend.js",
+      "types": "./dist/backend.d.ts"
+    },
+    "./express": {
+      "import": "./dist/express.js",
+      "require": "./dist/cjs/express.js",
+      "types": "./dist/express.d.ts"
+    }
   }
 }

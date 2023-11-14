@@ -1,7 +1,7 @@
-const service = require('./service')
+import service from './service.js'
 
 // Validate jwt and send unauthenticated response if invalid
-module.exports = async (req, res, next) => {
+export default async (req, res, next) => {
   const { jwt } = req.signedCookies
 
   // Validate jwt

@@ -1,6 +1,6 @@
-const { Wallet } = require('ethers')
+import { Wallet } from 'ethers'
 
-const { default: Web3SSO } = require('./index')
+import Web3SSO from './backend'
 
 const challengeToken = 'challengeToken'
 const challengeMessage = 'challengeMessage'

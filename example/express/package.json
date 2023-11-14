@@ -2,20 +2,21 @@
   "name": "express-example",
   "version": "0.1.0",
   "description": "",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "generate:jwt_secrets": "./bin/generate_jwt_signing_key",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "./bin/generate_jwt_signing_key"
+    "build:frontend": "esbuild --bundle frontend.js --outfile=public/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.6.1",
     "cookie-parser": "^1.4.6",
-    "dotenv": "^16.0.0",
+    "esbuild": "^0.19.5",
     "express": "^4.17.2",
     "jose": "^4.3.7",
-    "web3-sso": "file:.."
+    "web3-sso": "file:../.."
   }
 }

@@ -1,6 +1,6 @@
 # NPM PNPM #
 node_modules/
-lib/
+dist/
 
 # JEST #
 coverage/

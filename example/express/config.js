@@ -1,7 +1,3 @@
-const dotenv = require('dotenv')
-
-dotenv.config({ path: './secrets/.env' })
-
 const config = {
   cookie: {
     secret: process.env.COOKIE_SECRET
@@ -16,4 +12,4 @@ const config = {
   }
 }
 
-module.exports = config
+export default config
