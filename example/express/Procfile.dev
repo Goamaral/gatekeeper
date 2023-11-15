@@ -1,0 +1,3 @@
+express: node index.js
+esbuild: npx esbuild --bundle --watch frontend.js --outfile=public/index.js
+tailwindcss: npx tailwindcss --watch -i index.css -o public/index.css

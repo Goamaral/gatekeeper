@@ -16,9 +16,9 @@
     "build": "./bin/build",
     "build:esm": "tsc -p ./tsconfig.json && mv dist/esm/index.js dist/esm/index.mjs",
     "build:cjs": "tsc -p ./tsconfig.cjs.json",
-    "prepare": "pnpm run build",
-    "prepublishOnly": "pnpm test && pnpm run lint",
-    "preversion": "pnpm run lint",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test && npm run lint",
+    "preversion": "npm run lint",
     "version": "git add .",
     "postversion": "git push && git push --tags"
   },

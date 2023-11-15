@@ -1,11 +1,2 @@
 #!/usr/bin/env sh
-SCRIPT_PATH=${0%/*}
-PROJECT_PATH=$SCRIPT_PATH/..
-
-export COOKIE_SECRET=$(xxd -l16 -ps /dev/random)
-
-cd $PROJECT_PATH
-npm i
-./bin/generate-jwt-signing-key
-npm run build:frontend
 npm start
