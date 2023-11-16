@@ -57,11 +57,6 @@
       "import": "./dist/backend.js",
       "require": "./dist/cjs/backend.js",
       "types": "./dist/backend.d.ts"
-    },
-    "./express": {
-      "import": "./dist/express.js",
-      "require": "./dist/cjs/express.js",
-      "types": "./dist/express.d.ts"
     }
   }
 }

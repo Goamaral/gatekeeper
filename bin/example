@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+SCRIPT_PATH=${0%/*}
+PROJECT_PATH=$SCRIPT_PATH/..
+
+npm i
+npm run build
+cd $PROJECT_PATH/example
+npm i
+npm run build:frontend
+npm start

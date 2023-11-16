@@ -1,25 +1,21 @@
 {
-  "name": "express-example",
+  "name": "example",
   "version": "0.1.0",
   "description": "",
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "sh bin/setup && node index.js",
+    "start": "node index.js",
     "dev": "nf --procfile Procfile.dev start",
     "build:frontend": "npm run build:frontend:js && npm run build:frontend:css",
     "build:frontend:js": "esbuild --bundle frontend.js --outfile=public/index.js",
-    "build:frontend:css": "tailwindcss -i index.css -o public/index.css",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:frontend:css": "tailwindcss -i index.css -o public/index.css"
   },
-  "author": "",
+  "author": "Gonçalo Amaral",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.6.1",
-    "cookie-parser": "^1.4.6",
-    "express": "^4.17.2",
-    "jose": "^4.3.7",
-    "web3-sso": "file:../.."
+    "web3-sso": "file:.."
   },
   "devDependencies": {
     "esbuild": "^0.19.5",

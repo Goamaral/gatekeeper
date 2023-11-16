@@ -27,6 +27,4 @@ In the example, we try to keep things as simple as possible (we are using a bare
 This way most people should be able to figure out how it could be ported to other languages/frameworks.
 
 ## How to run example?
-- Run `npm run build` on the root of the project to build web3-sso
-- Go to the example
-- Run bin/start script
+- Run `bin/example`

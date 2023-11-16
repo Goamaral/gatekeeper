@@ -1,9 +1,24 @@
 import Web3SSOFrontend from 'web3-sso/frontend'
 import axios from 'axios'
 
+/**
+ * @param {HTMLElement} el
+ * */
+function hideEl (el) {
+  el.classList.add('hidden')
+}
+
+/**
+ * @param {HTMLElement} el
+ * */
+function showEl (el) {
+  el.classList.remove('hidden')
+}
+
 window.onload = async () => {
   const connectButtonEl = document.getElementById('connect_button')
   const loginButtonEl = document.getElementById('login_button')
+  const logoutButtonEl = document.getElementById('logout_button')
   const errorEl = document.getElementById('error')
   const authUserEl = document.getElementById('auth_user')
 
@@ -11,28 +26,26 @@ window.onload = async () => {
     errorEl.innerText = err
   }
 
-  async function fetchAuthUser () {
+  async function fetchAuthUser (visibleError = true) {
     try {
       return (await axios.get('/auth/user')).data.user
     } catch (err) {
-      showError(`${err.response.statusText}: ${err.response.data.error}`)
+      if (visibleError) showError(`${err.response.statusText}: ${err.response.data.error}`)
     }
   }
 
   const sso = new Web3SSOFrontend()
   await sso.init()
 
-  connectButtonEl.style.display = 'none'
-  loginButtonEl.style.display = 'none'
-
   if (!sso.connected) {
-    connectButtonEl.style.display = 'inline-block'
+    showEl(connectButtonEl)
   } else {
-    const user = await fetchAuthUser()
+    const user = await fetchAuthUser(false)
     if (!user) {
-      loginButtonEl.style.display = 'inline-block'
+      showEl(loginButtonEl)
     } else {
       authUserEl.innerText = JSON.stringify(user)
+      showEl(logoutButtonEl)
     }
   }
 
@@ -40,8 +53,8 @@ window.onload = async () => {
   connectButtonEl.onclick = async () => {
     await sso.connectWallet()
 
-    connectButtonEl.style.display = 'none'
-    loginButtonEl.style.display = 'inline-block'
+    hideEl(connectButtonEl)
+    showEl(loginButtonEl)
   }
 
   // Request challenge, sign it, and authenticate
@@ -54,9 +67,24 @@ window.onload = async () => {
       return
     }
 
-    loginButtonEl.style.display = 'none'
-
     const user = await fetchAuthUser()
-    if (user) authUserEl.innerText = JSON.stringify(user)
+    authUserEl.innerText = JSON.stringify(user)
+    hideEl(loginButtonEl)
+    showEl(logoutButtonEl)
+  }
+
+  // Logout
+  logoutButtonEl.onclick = async () => {
+    try {
+      await axios.post('/auth/logout')
+      showError('')
+    } catch (err) {
+      showError(`${err.response.statusText}: ${err.response.data.error}`)
+      return
+    }
+
+    showEl(loginButtonEl)
+    hideEl(logoutButtonEl)
+    authUserEl.innerText = ''
   }
 }
