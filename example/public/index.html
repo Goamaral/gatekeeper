@@ -5,19 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Example app</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="/index.js"></script>
     <link href="/index.css" rel="stylesheet">
   </head>
 
-  <body>
-    <button type="button" id="connect_button" class="hidden">Connect wallet</button>
-    <button type="button" id="login_button" class="hidden">Login with wallet</button>
-    <button type="button" id="logout_button" class="hidden">Logout</button>
-    <p id="error" style="color: red"></p>
-    <pre id="auth_user"></pre>
+  <body class="font-primary bg-gray text-blue">
+    <div class="bg-white w-[600px] mt-[30vh] mx-auto p-8 flex flex-col rounded-xl items-center">
+      <h1 class="text-3xl font-bold">Web3Login Example</h1>
 
-    <h1 class="text-3xl font-bold underline">
-      Hello world!
-    </h1>
+      <p class="mt-8 font-semibold">User</p>
+      <p id="user">Loading...</p>
+
+      <div id="error" class="hidden mt-4 text-center text-red-500">
+        <p class="font-semibold ">Error</p>
+        <p id="error_msg"></p>
+      </div>
+
+      <button type="button" id="button" class="p-2 mt-8 text-white rounded-full w-36 bg-yellow">Loading...</button>
+    </div>
   </body>
 </html>

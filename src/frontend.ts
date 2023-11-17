@@ -13,13 +13,19 @@ interface Config {
   loginUrl: string
 }
 
+export const MetamaskNotInstalledError = class MetamaskNotInstalledError extends Error {
+  constructor () {
+    super('Metamask is not installed')
+  }
+}
+
 export const Web3SSOFrontend = class Web3SSOFrontend {
   provider: providers.Web3Provider
   connected: boolean
   config: Config
 
   constructor (config) {
-    if (window.ethereum === undefined) throw new Error('Metamask not installed')
+    if (window.ethereum === undefined) throw new MetamaskNotInstalledError()
     this.provider = new providers.Web3Provider(window.ethereum)
     this.connected = false
 

@@ -2,7 +2,16 @@
 export default {
   content: ['./public/**/*.{html,js}'],
   theme: {
-    extend: {}
+    extend: {
+      fontFamily: {
+        primary: ['Montserrat']
+      },
+      colors: {
+        gray: '#E5E5E5',
+        yellow: '#FCA311',
+        blue: '#14213D'
+      }
+    }
   },
   plugins: []
 }
