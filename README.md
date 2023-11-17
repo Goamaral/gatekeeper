@@ -1,4 +1,4 @@
-# Web3 SSO
+# Gatekeeper
 
 ## Supported/Tested wallets
 - Metamask

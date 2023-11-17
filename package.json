@@ -1,14 +1,14 @@
 {
-  "name": "web3-sso",
+  "name": "gatekeeper",
   "version": "0.1.0",
-  "description": "SSO for web3",
+  "description": "web3 login for web2",
   "type": "module",
   "author": "Gonçalo Amaral",
   "license": "ISC",
   "keywords": [
     "web3",
-    "sso",
-    "express"
+    "login",
+    "web2"
   ],
   "scripts": {
     "test": "jest",
@@ -31,7 +31,6 @@
     "@jest/globals": "^29.3.1",
     "@types/jest": "^29.2.4",
     "jest": "^29.3.1",
-    "supertest": "^6.2.3",
     "ts-jest": "^29.0.3",
     "ts-standard": "^12.0.2",
     "typescript": "^4.9.4"
@@ -52,11 +51,6 @@
       "import": "./dist/frontend.js",
       "require": "./dist/cjs/frontend.js",
       "types": "./dist/frontend.d.ts"
-    },
-    "./backend": {
-      "import": "./dist/backend.js",
-      "require": "./dist/cjs/backend.js",
-      "types": "./dist/backend.d.ts"
     }
   }
 }

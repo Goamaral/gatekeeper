@@ -1,4 +1,4 @@
-import Web3SSOFrontend, { MetamaskNotInstalledError } from 'web3-sso/frontend'
+import Gatekeeper, { MetamaskNotInstalledError } from 'gatekeeper/frontend'
 import axios from 'axios'
 
 const CONNECT_MODE = 1
@@ -15,10 +15,10 @@ window.onload = async () => {
   const errorEl = document.getElementById('error')
   const errorMsgEl = document.getElementById('error_msg')
 
-  let sso
+  let gatekeeper
   try {
-    sso = new Web3SSOFrontend()
-    await sso.init()
+    gatekeeper = new Gatekeeper()
+    await gatekeeper.init()
   } catch (err) {
     if (err instanceof MetamaskNotInstalledError) {
       showError(err)
@@ -29,7 +29,7 @@ window.onload = async () => {
     }
   }
 
-  if (!sso.connected) {
+  if (!gatekeeper.connected) {
     setButtonMode(CONNECT_MODE)
   } else {
     const user = await fetchAuthUser(false)
@@ -42,7 +42,11 @@ window.onload = async () => {
   }
 
   function showError (err) {
-    errorMsgEl.innerText = err.message
+    if (err instanceof Error) {
+      errorMsgEl.innerText = err.message
+    } else {
+      errorMsgEl.innerText = err
+    }
     errorEl.classList.remove('hidden')
   }
 
@@ -66,7 +70,7 @@ window.onload = async () => {
         setUser(undefined)
         buttonEl.innerText = CONNECT_WALLET_MSG
         buttonEl.onclick = async () => {
-          await sso.connectWallet()
+          await gatekeeper.connectWallet()
           setButtonMode(LOGIN_MODE)
         }
         break
@@ -76,13 +80,10 @@ window.onload = async () => {
         buttonEl.innerText = LOGIN_MSG
         buttonEl.onclick = async () => {
           try {
-            await sso.login()
-            showError('')
+            await gatekeeper.login()
           } catch (err) {
-            showError(`${err.response.statusText}: ${err.response.data.error}`)
-            return
+            return showError(err)
           }
-
           setButtonMode(LOGOUT_MODE)
         }
         break
@@ -92,13 +93,10 @@ window.onload = async () => {
         buttonEl.innerText = LOGOUT_MSG
         buttonEl.onclick = async () => {
           try {
-            await axios.post('/auth/logout')
-            showError('')
+            await gatekeeper.logout()
           } catch (err) {
-            showError(`${err.response.statusText}: ${err.response.data.error}`)
-            return
+            return showError(err)
           }
-
           setButtonMode(LOGIN_MODE)
         }
         break

@@ -2,7 +2,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 
-import Web3SSOBackend from 'web3-sso/backend'
+import Gatekeeper from 'gatekeeper'
 
 const PORT = 3000
 
@@ -12,12 +12,11 @@ const UNAUTHORIZED = 401
 const NOT_FOUND = 404
 const METHOD_NOT_ALLOWED = 405
 
-const service = new Web3SSOBackend()
+const gatekeeper = new Gatekeeper()
 
 const sessions = []
 
 const server = http.createServer(async function (req, res) {
-  if (req.method !== 'GET' && req.method !== 'POST') return sendText(res, METHOD_NOT_ALLOWED, 'METHOD NOT ALLOWED')
   if (req.method === 'POST') req.body = await readBody()
 
   const router = {
@@ -31,19 +30,21 @@ const server = http.createServer(async function (req, res) {
       }
     },
     POST: {
-      '/auth/challenge': async () => sendJson({ challenge: await service.issueChallenge(req.body.walletAddress) }),
+      '/auth/challenge': async () => sendJson({ challenge: await gatekeeper.issueChallenge(req.body.walletAddress) }),
       '/auth/login': async () => {
         const session = getSession()
         if (authenticated(() => session)) return sendNoContent()
 
-        const valid = await service.validateSignedChallenge(req.body.walletAddress, req.body.signedChallenge)
+        const valid = await gatekeeper.validateSignedChallenge(req.body.walletAddress, req.body.signedChallenge)
         if (!valid) return sendJson({ error: 'failed to validate signed challenge' }, UNAUTHORIZED)
 
         const newSession = crypto.randomBytes(20).toString('hex')
         sessions.push(newSession)
         res.setHeader('Set-Cookie', `session=${newSession};`)
         sendNoContent()
-      },
+      }
+    },
+    DELETE: {
       '/auth/logout': () => {
         const session = getSession()
         if (authenticated(() => session)) {
@@ -56,8 +57,10 @@ const server = http.createServer(async function (req, res) {
     }
   }
 
+  if (!Object.keys(router).includes(req.method)) return sendJson({ error: 'Method Not Allowed' }, METHOD_NOT_ALLOWED)
+
   const handler = router[req.method][req.url]
-  if (handler === undefined) return sendText('NOT FOUND', NOT_FOUND)
+  if (handler === undefined) return sendJson({ error: 'Not Found' }, NOT_FOUND)
 
   handler(req, res)
 
@@ -93,16 +96,6 @@ const server = http.createServer(async function (req, res) {
     res.setHeader('Content-Type', contentType)
     const stream = fs.createReadStream(path)
     stream.pipe(res)
-  }
-
-  /**
-   * @param {string} text
-   * @param {number} status
-   */
-  function sendText (text, status = OK) {
-    res.statusCode = status
-    res.write(text)
-    res.end()
   }
 
   /**

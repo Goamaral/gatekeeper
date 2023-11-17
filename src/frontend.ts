@@ -9,8 +9,9 @@ declare global {
 }
 
 interface Config {
-  challengeUrl: string
-  loginUrl: string
+  getChallenge: (walletAddress: string) => Promise<string>
+  login: (walletAddress: string, signedChallenge: string) => Promise<void>
+  logout: () => Promise<void>
 }
 
 export const MetamaskNotInstalledError = class MetamaskNotInstalledError extends Error {
@@ -19,7 +20,20 @@ export const MetamaskNotInstalledError = class MetamaskNotInstalledError extends
   }
 }
 
-export const Web3SSOFrontend = class Web3SSOFrontend {
+async function getChallenge (walletAddress: string): Promise<string> {
+  const { challenge } = (await axios.post('/auth/challenge', { walletAddress })).data
+  return challenge
+}
+
+async function login (walletAddress: string, signedChallenge: string): Promise<void> {
+  await axios.post('/auth/login', { walletAddress, signedChallenge })
+}
+
+async function logout (): Promise<void> {
+  await axios.delete('/auth/logout')
+}
+
+export const Gatekeeper = class Gatekeeper {
   provider: providers.Web3Provider
   connected: boolean
   config: Config
@@ -29,9 +43,10 @@ export const Web3SSOFrontend = class Web3SSOFrontend {
     this.provider = new providers.Web3Provider(window.ethereum)
     this.connected = false
 
-    const defaultConfig = {
-      challengeUrl: '/auth/challenge',
-      loginUrl: '/auth/login'
+    const defaultConfig: Config = {
+      getChallenge,
+      login,
+      logout
     }
 
     this.config = { ...defaultConfig, ...config }
@@ -56,10 +71,14 @@ export const Web3SSOFrontend = class Web3SSOFrontend {
 
   async login (): Promise<void> {
     const walletAddress = await this.getWalletAddress()
-    const { challenge } = (await axios.post(this.config.challengeUrl, { walletAddress })).data
+    const challenge = await this.config.getChallenge(walletAddress)
     const signedChallenge = await this.signer.signMessage(challenge)
-    await axios.post(this.config.loginUrl, { walletAddress, signedChallenge })
+    await this.config.login(walletAddress, signedChallenge)
+  }
+
+  async logout (): Promise<void> {
+    await this.config.logout()
   }
 }
 
-export default Web3SSOFrontend
+export default Gatekeeper
