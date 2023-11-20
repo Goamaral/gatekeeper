@@ -1,4 +1,8 @@
 # Gatekeeper
+Gatekeeper is an auth library and proviver that allows your users to use a
+web3 wallet as a login method in your web2 app. This way users keep their anonymity,
+can use one wallet to login into multiple web2 apps and don't need to remember/track
+another password
 
 ## Supported/Tested wallets
 - Metamask
