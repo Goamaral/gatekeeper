@@ -1,13 +1,26 @@
 package main
 
 import (
+	"fmt"
+	"gatekeeper/internal"
 	"gatekeeper/internal/server"
+	"log/slog"
+	"os"
 )
 
-func main() {
-	s := server.NewServer()
-	err := s.Serve(":3000")
+func panicOnErr(err error) {
 	if err != nil {
-		panic(err)
+		slog.Error("%s", err)
+		os.Exit(1)
 	}
+}
+
+func main() {
+	injector := internal.NewInjector()
+	defer injector.Shutdown()
+
+	s := server.NewServer(injector)
+	addr := ":3000"
+	err := s.Serve(addr)
+	panicOnErr(fmt.Errorf("failed to serve http server on %s: %w", addr, err))
 }

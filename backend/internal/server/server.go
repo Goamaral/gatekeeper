@@ -1,21 +1,35 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 
+	"github.com/gookit/validate"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/samber/do"
+	"github.com/sirupsen/logrus"
 )
+
+type ErrorResponse struct {
+	Error []string `json:"error"`
+}
+
+type ValidationErrorResponse struct {
+	Errors validate.Errors `json:"errors"`
+}
+
+var RequestMalformedResponse = ErrorResponse{Error: []string{"Request Malformed"}}
+var InternalServerErrorResponse = ErrorResponse{Error: []string{"Internal Server Error"}}
 
 type Server struct {
 	EchoInst      *echo.Echo
 	PublicCtrl    PublicController
 	ChallengeCtrl ChallengeController
+	Logger        *logrus.Logger
 }
 
-func NewServer() Server {
+func NewServer(i *do.Injector) Server {
 	echoInst := echo.New()
 	echoInst.Use(middleware.Logger())
 	echoInst.Use(middleware.Recover())
@@ -23,16 +37,16 @@ func NewServer() Server {
 	return Server{
 		EchoInst:      echoInst,
 		PublicCtrl:    NewPublicController(echoInst.Group("")),
-		ChallengeCtrl: NewChallengeController(echoInst.Group("/v1/challenges")),
+		ChallengeCtrl: NewChallengeController(echoInst.Group("/v1/challenges"), i),
+		Logger:        do.MustInvoke[*logrus.Logger](i),
 	}
 }
 
 func (s Server) Serve(addr string) error {
-	data, _ := json.MarshalIndent(s.EchoInst.Routes(), "", "  ")
-	fmt.Println(string(data))
 	lst, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen to tcp port: %w", err)
 	}
+	s.Logger.Infof("Http server listening on %s", addr)
 	return s.EchoInst.Server.Serve(lst)
 }

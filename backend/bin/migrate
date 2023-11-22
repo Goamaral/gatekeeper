@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+SCRIPT_PATH=${0%/*}
+PROJECT_PATH=$SCRIPT_PATH/..
+
+cd $PROJECT_PATH
+
+docker pull amacneil/dbmate:latest
+docker run --rm -it --network=host --env-file=.env --volume=$PWD:/workdir --workdir=/workdir amacneil/dbmate $@
