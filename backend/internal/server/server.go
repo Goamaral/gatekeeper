@@ -12,15 +12,19 @@ import (
 )
 
 type ErrorResponse struct {
-	Error []string `json:"error"`
+	Error string `json:"error"`
+}
+
+type ErrorsResponse struct {
+	Errors []string `json:"errors"`
 }
 
 type ValidationErrorResponse struct {
 	Errors validate.Errors `json:"errors"`
 }
 
-var RequestMalformedResponse = ErrorResponse{Error: []string{"Request Malformed"}}
-var InternalServerErrorResponse = ErrorResponse{Error: []string{"Internal Server Error"}}
+var RequestMalformedResponse = ErrorResponse{Error: "Request Malformed"}
+var InternalServerErrorResponse = ErrorResponse{Error: "Internal Server Error"}
 
 type Server struct {
 	EchoInst      *echo.Echo

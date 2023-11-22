@@ -2,11 +2,13 @@ package server
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
-	"fmt"
+	"errors"
 	"gatekeeper/pkg/db"
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gookit/validate"
 	"github.com/labstack/echo/v4"
 	"github.com/samber/do"
@@ -14,6 +16,7 @@ import (
 )
 
 const ChallengeTokenLength uint = 10
+const ChallengeMessagePrefix = "Login request\n"
 
 type ChallengeController struct {
 	DbProvider db.Provider
@@ -46,8 +49,6 @@ func (ct ChallengeController) Issue(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, RequestMalformedResponse)
 	}
-
-	// Validate request
 	v := validate.Struct(req)
 	if !v.Validate() {
 		return c.JSON(http.StatusBadRequest, ValidationErrorResponse{Errors: v.Errors})
@@ -73,11 +74,62 @@ func (ct ChallengeController) Issue(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, ChallengeController_IssueResponse{
-		Challenge: fmt.Sprintf("Login request\n%s", challengeToken),
+		Challenge: ChallengeMessagePrefix + challengeToken,
 	})
 }
 
+type ChallengeController_VerifyRequest struct {
+	WalletAddress   string `json:"walletAddress" validate:"required"`
+	SignedChallenge string `json:"signedChallenge" validate:"required"`
+}
+
+type ChallengeController_VerifyResponse struct {
+	Valid bool   `json:"challenge"`
+	Error string `json:"errors,omitempty"`
+}
+
+const MsgChallengeDoesNotExistOrExpired = "Challenge does not exist or has expired"
+const MsgInvalidWalletAddressSignedChallengeCombination = "Invalid wallet address and signed challenge combination"
+
 func (ct ChallengeController) Verify(c echo.Context) error {
-	// TODO
-	return nil
+	req := ChallengeController_VerifyRequest{}
+	err := c.Bind(&req)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, RequestMalformedResponse)
+	}
+	v := validate.Struct(req)
+	if !v.Validate() {
+		return c.JSON(http.StatusBadRequest, ValidationErrorResponse{Errors: v.Errors})
+	}
+
+	// Extract challenge token and get associated wallet address
+	var challengeToken string
+	err = ct.DbProvider.DB.GetContext(c.Request().Context(), &challengeToken,
+		"SELECT token FROM challenges WHERE wallet_address = ? LIMIT 1", req.WalletAddress,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusUnprocessableEntity, ChallengeController_VerifyResponse{
+				Error: MsgChallengeDoesNotExistOrExpired,
+			})
+		}
+
+		ct.Logger.WithError(err).Error("failed to get challenge")
+		return c.JSON(http.StatusInternalServerError, InternalServerErrorResponse)
+	}
+
+	// Verify message
+	walletAddressBytes, err := crypto.Ecrecover([]byte(ChallengeMessagePrefix+challengeToken), []byte(req.SignedChallenge))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, ChallengeController_VerifyResponse{
+			Error: MsgInvalidWalletAddressSignedChallengeCombination,
+		})
+	}
+	if string(walletAddressBytes) != req.WalletAddress {
+		return c.JSON(http.StatusUnprocessableEntity, ChallengeController_VerifyResponse{
+			Error: MsgInvalidWalletAddressSignedChallengeCombination,
+		})
+	}
+
+	return c.JSON(http.StatusOK, ChallengeController_VerifyResponse{Valid: true})
 }
