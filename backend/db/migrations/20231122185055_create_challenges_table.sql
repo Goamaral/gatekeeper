@@ -2,7 +2,7 @@
 CREATE TABLE challenges (
   id INTEGER PRIMARY KEY,
   wallet_address TEXT NOT NULL,
-  token TEXT NOT NULL
+  token TEXT NOT NULL UNIQUE
 );
 
 -- migrate:down

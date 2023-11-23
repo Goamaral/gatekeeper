@@ -7,7 +7,9 @@ import (
 	"errors"
 	"gatekeeper/pkg/db"
 	"net/http"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gookit/validate"
 	"github.com/labstack/echo/v4"
@@ -30,7 +32,7 @@ func NewChallengeController(echoGrp *echo.Group, i *do.Injector) ChallengeContro
 	}
 
 	echoGrp.POST("/issue", ct.Issue)
-	echoGrp.POST("/verify", ct.Verify)
+	echoGrp.POST("/validate", ct.Validate)
 
 	return ct
 }
@@ -41,6 +43,15 @@ type ChallengeController_IssueRequest struct {
 
 type ChallengeController_IssueResponse struct {
 	Challenge string `json:"challenge"`
+}
+
+func GenerateChallengeToken() (string, error) {
+	challengeTokenBytes := make([]byte, ChallengeTokenLength)
+	_, err := rand.Read(challengeTokenBytes)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(challengeTokenBytes), nil
 }
 
 func (ct ChallengeController) Issue(c echo.Context) error {
@@ -55,13 +66,11 @@ func (ct ChallengeController) Issue(c echo.Context) error {
 	}
 
 	// Generate challenge token
-	challengeTokenBytes := make([]byte, ChallengeTokenLength)
-	_, err = rand.Read(challengeTokenBytes)
+	challengeToken, err := GenerateChallengeToken()
 	if err != nil {
 		ct.Logger.WithError(err).Error("failed to generate challenge token")
 		return c.JSON(http.StatusInternalServerError, InternalServerErrorResponse)
 	}
-	challengeToken := hex.EncodeToString(challengeTokenBytes)
 
 	// Save challenge
 	_, err = ct.DbProvider.DB.ExecContext(c.Request().Context(),
@@ -78,21 +87,21 @@ func (ct ChallengeController) Issue(c echo.Context) error {
 	})
 }
 
-type ChallengeController_VerifyRequest struct {
-	WalletAddress   string `json:"walletAddress" validate:"required"`
-	SignedChallenge string `json:"signedChallenge" validate:"required"`
+type ChallengeController_ValidateRequest struct {
+	Challenge string `json:"challenge" validate:"required"`
+	Signature string `json:"signature" validate:"required"`
 }
 
-type ChallengeController_VerifyResponse struct {
+type ChallengeController_ValidateResponse struct {
 	Valid bool   `json:"challenge"`
-	Error string `json:"errors,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 const MsgChallengeDoesNotExistOrExpired = "Challenge does not exist or has expired"
-const MsgInvalidWalletAddressSignedChallengeCombination = "Invalid wallet address and signed challenge combination"
+const MsgInvalidSignature = "Invalid signature for given challenge"
 
-func (ct ChallengeController) Verify(c echo.Context) error {
-	req := ChallengeController_VerifyRequest{}
+func (ct ChallengeController) Validate(c echo.Context) error {
+	req := ChallengeController_ValidateRequest{}
 	err := c.Bind(&req)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, RequestMalformedResponse)
@@ -103,13 +112,14 @@ func (ct ChallengeController) Verify(c echo.Context) error {
 	}
 
 	// Extract challenge token and get associated wallet address
-	var challengeToken string
-	err = ct.DbProvider.DB.GetContext(c.Request().Context(), &challengeToken,
-		"SELECT token FROM challenges WHERE wallet_address = ? LIMIT 1", req.WalletAddress,
+	challengeToken := strings.ReplaceAll(req.Challenge, ChallengeMessagePrefix, "")
+	var walletAddress string
+	err = ct.DbProvider.DB.GetContext(c.Request().Context(), &walletAddress,
+		"SELECT wallet_address FROM challenges WHERE token = ? LIMIT 1", challengeToken,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return c.JSON(http.StatusUnprocessableEntity, ChallengeController_VerifyResponse{
+			return c.JSON(http.StatusUnprocessableEntity, ChallengeController_ValidateResponse{
 				Error: MsgChallengeDoesNotExistOrExpired,
 			})
 		}
@@ -118,18 +128,29 @@ func (ct ChallengeController) Verify(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, InternalServerErrorResponse)
 	}
 
-	// Verify message
-	walletAddressBytes, err := crypto.Ecrecover([]byte(ChallengeMessagePrefix+challengeToken), []byte(req.SignedChallenge))
+	// Validate message
+	challengeHash := crypto.Keccak256([]byte(req.Challenge))
+	signature, err := hexutil.Decode(req.Signature)
 	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, ChallengeController_VerifyResponse{
-			Error: MsgInvalidWalletAddressSignedChallengeCombination,
+		return c.JSON(http.StatusUnprocessableEntity, ChallengeController_ValidateResponse{
+			Error: MsgInvalidSignature,
 		})
 	}
-	if string(walletAddressBytes) != req.WalletAddress {
-		return c.JSON(http.StatusUnprocessableEntity, ChallengeController_VerifyResponse{
-			Error: MsgInvalidWalletAddressSignedChallengeCombination,
+	publicKey, err := crypto.SigToPub(challengeHash, signature)
+	if err != nil || crypto.PubkeyToAddress(*publicKey).Hex() != walletAddress {
+		return c.JSON(http.StatusUnprocessableEntity, ChallengeController_ValidateResponse{
+			Error: MsgInvalidSignature,
 		})
 	}
 
-	return c.JSON(http.StatusOK, ChallengeController_VerifyResponse{Valid: true})
+	// Delete challenge
+	_, err = ct.DbProvider.DB.ExecContext(c.Request().Context(),
+		"DELETE FROM challenges WHERE token = ?", challengeToken,
+	)
+	if err != nil {
+		ct.Logger.WithError(err).Errorf("failed to delete challenge (token: %s)", challengeToken)
+		return c.JSON(http.StatusInternalServerError, InternalServerErrorResponse)
+	}
+
+	return c.JSON(http.StatusOK, ChallengeController_ValidateResponse{Valid: true})
 }
