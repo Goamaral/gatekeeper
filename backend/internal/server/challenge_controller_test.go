@@ -17,7 +17,7 @@ import (
 func TestChallengeController_Issue(t *testing.T) {
 	s := server.NewServer(internal.NewTestInjector(t))
 	res := internal.SendTestRequest(t, s,
-		"POST", "/v1/challenges/issue", server.ChallengeController_IssueRequest{WalletAddress: "WalletAddress"},
+		http.MethodPost, "/v1/challenges/issue", server.ChallengeController_IssueRequest{WalletAddress: "WalletAddress"},
 	)
 	require.Equal(t, http.StatusOK, res.Code)
 }
@@ -48,7 +48,7 @@ func TestChallengeController_Validate(t *testing.T) {
 		)
 
 		return internal.SendTestRequest(t, s,
-			"POST", "/v1/challenges/validate", server.ChallengeController_ValidateRequest{
+			http.MethodPost, "/v1/challenges/validate", server.ChallengeController_ValidateRequest{
 				Challenge: challenge,
 				Signature: signature,
 			},

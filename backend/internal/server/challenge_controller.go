@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"gatekeeper/pkg/db"
 	"net/http"
 	"strings"
@@ -58,7 +59,7 @@ func (ct ChallengeController) Issue(c echo.Context) error {
 	req := ChallengeController_IssueRequest{}
 	err := c.Bind(&req)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, RequestMalformedResponse)
+		return ErrRequestMalformed
 	}
 	v := validate.Struct(req)
 	if !v.Validate() {
@@ -68,8 +69,7 @@ func (ct ChallengeController) Issue(c echo.Context) error {
 	// Generate challenge token
 	challengeToken, err := GenerateChallengeToken()
 	if err != nil {
-		ct.Logger.WithError(err).Error("failed to generate challenge token")
-		return c.JSON(http.StatusInternalServerError, InternalServerErrorResponse)
+		return fmt.Errorf("failed to generate challenge token: %w", err)
 	}
 
 	// Save challenge
@@ -78,8 +78,7 @@ func (ct ChallengeController) Issue(c echo.Context) error {
 		req.WalletAddress, challengeToken,
 	)
 	if err != nil {
-		ct.Logger.WithError(err).Error("failed to save challenge")
-		return c.JSON(http.StatusInternalServerError, InternalServerErrorResponse)
+		return fmt.Errorf("failed to save challenge: %w", err)
 	}
 
 	return c.JSON(http.StatusOK, ChallengeController_IssueResponse{
@@ -104,7 +103,7 @@ func (ct ChallengeController) Validate(c echo.Context) error {
 	req := ChallengeController_ValidateRequest{}
 	err := c.Bind(&req)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, RequestMalformedResponse)
+		return ErrRequestMalformed
 	}
 	v := validate.Struct(req)
 	if !v.Validate() {
@@ -124,8 +123,7 @@ func (ct ChallengeController) Validate(c echo.Context) error {
 			})
 		}
 
-		ct.Logger.WithError(err).Error("failed to get challenge")
-		return c.JSON(http.StatusInternalServerError, InternalServerErrorResponse)
+		return fmt.Errorf("failed to get challenge: %w", err)
 	}
 
 	// Validate message
@@ -148,8 +146,7 @@ func (ct ChallengeController) Validate(c echo.Context) error {
 		"DELETE FROM challenges WHERE token = ?", challengeToken,
 	)
 	if err != nil {
-		ct.Logger.WithError(err).Errorf("failed to delete challenge (token: %s)", challengeToken)
-		return c.JSON(http.StatusInternalServerError, InternalServerErrorResponse)
+		return fmt.Errorf("failed to delete challenge (token: %s): %w", challengeToken, err)
 	}
 
 	return c.JSON(http.StatusOK, ChallengeController_ValidateResponse{Valid: true})

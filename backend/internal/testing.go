@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +21,7 @@ func SendTestRequest(t *testing.T, s server.Server, method, path string, body an
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(method, path, bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 
 	res := httptest.NewRecorder()
 	s.EchoInst.ServeHTTP(res, req)
