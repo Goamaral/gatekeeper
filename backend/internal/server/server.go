@@ -1,7 +1,9 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 
@@ -9,28 +11,44 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/samber/do"
-	"github.com/sirupsen/logrus"
 )
+
+func NewHTTPError(code int, err any) HTTPError {
+	return HTTPError{Code: code, Err: err}
+}
+
+type HTTPError struct {
+	Code int
+	Err  any
+}
+
+func (e HTTPError) Error() string {
+	switch err := e.Err.(type) {
+	case error:
+		return err.Error()
+	case fmt.Stringer:
+		return err.String()
+	case string:
+		return err
+	default:
+		panic(fmt.Sprintf("can't get error message from %T", err))
+	}
+}
+
+var ErrRequestMalformed = NewHTTPError(http.StatusBadRequest, "Request malformed")
+
+func NewValidationErrorResponse(errs validate.Errors) HTTPError {
+	return NewHTTPError(http.StatusBadRequest, map[string]any{"errors": errs})
+}
 
 type ErrorResponse struct {
 	Error string `json:"error"`
-}
-
-var ErrRequestMalformed = echo.NewHTTPError(http.StatusBadRequest, "Request malformed")
-
-type ErrorsResponse struct {
-	Errors []string `json:"errors"`
-}
-
-type ValidationErrorResponse struct {
-	Errors validate.Errors `json:"errors"`
 }
 
 type Server struct {
 	EchoInst      *echo.Echo
 	PublicCtrl    PublicController
 	ChallengeCtrl ChallengeController
-	Logger        *logrus.Logger
 }
 
 func NewServer(i *do.Injector) Server {
@@ -38,27 +56,33 @@ func NewServer(i *do.Injector) Server {
 	echoInst.Use(middleware.Logger())
 	echoInst.Use(middleware.Recover())
 	echoInst.HTTPErrorHandler = func(err error, c echo.Context) {
-		statusCode := http.StatusInternalServerError
-		errorMsg := http.StatusText(statusCode)
-
-		if httpErr, ok := err.(*echo.HTTPError); ok {
-			statusCode = httpErr.Code
-			errorMsg = httpErr.Message.(string)
+		if c.Response().Committed {
+			return
 		}
 
-		if statusCode == http.StatusInternalServerError {
-			c.Logger().Error(err)
-			errorMsg = http.StatusText(statusCode)
+		httpErr, ok := err.(HTTPError)
+		if !ok {
+			httpErr = HTTPError{
+				Code: http.StatusInternalServerError,
+				Err:  http.StatusText(http.StatusInternalServerError),
+			}
 		}
 
-		contentType := c.Request().Header.Get(echo.HeaderContentType)
-		if contentType == echo.MIMETextHTML {
-			err = c.String(statusCode, errorMsg) // TODO: Have error page for each status code
+		var msg any
+		if e, ok := httpErr.Err.(json.Marshaler); ok {
+			msg = e
 		} else {
-			err = c.JSON(statusCode, ErrorResponse{Error: errorMsg})
+			msg = ErrorResponse{Error: httpErr.Error()}
+		}
+
+		// Send response
+		if c.Request().Method == http.MethodHead { // Issue #608
+			err = c.NoContent(httpErr.Code)
+		} else {
+			err = c.JSON(httpErr.Code, msg)
 		}
 		if err != nil {
-			c.Logger().Error(fmt.Errorf("failed to send error response: %w", err))
+			echoInst.Logger.Error(err)
 		}
 	}
 
@@ -66,7 +90,6 @@ func NewServer(i *do.Injector) Server {
 		EchoInst:      echoInst,
 		PublicCtrl:    NewPublicController(echoInst.Group("")),
 		ChallengeCtrl: NewChallengeController(echoInst.Group("/v1/challenges"), i),
-		Logger:        do.MustInvoke[*logrus.Logger](i),
 	}
 }
 
@@ -75,6 +98,6 @@ func (s Server) Serve(addr string) error {
 	if err != nil {
 		return fmt.Errorf("failed to listen to tcp port: %w", err)
 	}
-	s.Logger.Infof("Http server listening on %s", addr)
+	log.Printf("Http server listening on %s", addr)
 	return s.EchoInst.Server.Serve(lst)
 }

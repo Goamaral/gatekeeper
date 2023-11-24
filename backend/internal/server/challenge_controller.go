@@ -6,30 +6,30 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"gatekeeper/pkg/db"
+	"gatekeeper/internal/entity"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/georgysavva/scany/sqlscan"
 	"github.com/gookit/validate"
 	"github.com/labstack/echo/v4"
 	"github.com/samber/do"
-	"github.com/sirupsen/logrus"
 )
 
-const ChallengeTokenLength uint = 10
+const ChallengeTokenLength uint = 16
 const ChallengeMessagePrefix = "Login request\n"
+const ChallengeValidDuration = 5 * time.Minute
 
 type ChallengeController struct {
-	DbProvider db.Provider
-	Logger     *logrus.Logger
+	DB *sql.DB
 }
 
 func NewChallengeController(echoGrp *echo.Group, i *do.Injector) ChallengeController {
 	ct := ChallengeController{
-		DbProvider: do.MustInvoke[db.Provider](i),
-		Logger:     do.MustInvoke[*logrus.Logger](i),
+		DB: do.MustInvoke[*sql.DB](i),
 	}
 
 	echoGrp.POST("/issue", ct.Issue)
@@ -63,7 +63,7 @@ func (ct ChallengeController) Issue(c echo.Context) error {
 	}
 	v := validate.Struct(req)
 	if !v.Validate() {
-		return c.JSON(http.StatusBadRequest, ValidationErrorResponse{Errors: v.Errors})
+		return NewValidationErrorResponse(v.Errors)
 	}
 
 	// Generate challenge token
@@ -73,9 +73,9 @@ func (ct ChallengeController) Issue(c echo.Context) error {
 	}
 
 	// Save challenge
-	_, err = ct.DbProvider.DB.ExecContext(c.Request().Context(),
-		"INSERT INTO challenges (wallet_address, token) VALUES (?, ?)",
-		req.WalletAddress, challengeToken,
+	_, err = ct.DB.ExecContext(c.Request().Context(),
+		"INSERT INTO challenges (wallet_address, token, expired_at) VALUES (?, ?, ?)",
+		req.WalletAddress, challengeToken, time.Now().UTC().Add(ChallengeValidDuration),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to save challenge: %w", err)
@@ -91,11 +91,6 @@ type ChallengeController_ValidateRequest struct {
 	Signature string `json:"signature" validate:"required"`
 }
 
-type ChallengeController_ValidateResponse struct {
-	Valid bool   `json:"challenge"`
-	Error string `json:"error,omitempty"`
-}
-
 const MsgChallengeDoesNotExistOrExpired = "Challenge does not exist or has expired"
 const MsgInvalidSignature = "Invalid signature for given challenge"
 
@@ -107,47 +102,45 @@ func (ct ChallengeController) Validate(c echo.Context) error {
 	}
 	v := validate.Struct(req)
 	if !v.Validate() {
-		return c.JSON(http.StatusBadRequest, ValidationErrorResponse{Errors: v.Errors})
+		return NewValidationErrorResponse(v.Errors)
 	}
 
 	// Extract challenge token and get associated wallet address
 	challengeToken := strings.ReplaceAll(req.Challenge, ChallengeMessagePrefix, "")
-	var walletAddress string
-	err = ct.DbProvider.DB.GetContext(c.Request().Context(), &walletAddress,
-		"SELECT wallet_address FROM challenges WHERE token = ? LIMIT 1", challengeToken,
+	challenge := entity.Challenge{Token: challengeToken}
+	err = sqlscan.Get(c.Request().Context(), ct.DB, &challenge,
+		"SELECT id, wallet_address, expired_at FROM challenges WHERE token = ? LIMIT 1", challengeToken,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return c.JSON(http.StatusUnprocessableEntity, ChallengeController_ValidateResponse{
-				Error: MsgChallengeDoesNotExistOrExpired,
-			})
+			return NewHTTPError(http.StatusUnprocessableEntity, MsgChallengeDoesNotExistOrExpired)
 		}
 
 		return fmt.Errorf("failed to get challenge: %w", err)
+	}
+	fmt.Println(len(challenge.WalletAddress))
+	if challenge.ExpiredAt.Before(time.Now()) {
+		return NewHTTPError(http.StatusUnprocessableEntity, MsgChallengeDoesNotExistOrExpired)
 	}
 
 	// Validate message
 	challengeHash := crypto.Keccak256([]byte(req.Challenge))
 	signature, err := hexutil.Decode(req.Signature)
 	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, ChallengeController_ValidateResponse{
-			Error: MsgInvalidSignature,
-		})
+		return NewHTTPError(http.StatusUnprocessableEntity, MsgInvalidSignature)
 	}
 	publicKey, err := crypto.SigToPub(challengeHash, signature)
-	if err != nil || crypto.PubkeyToAddress(*publicKey).Hex() != walletAddress {
-		return c.JSON(http.StatusUnprocessableEntity, ChallengeController_ValidateResponse{
-			Error: MsgInvalidSignature,
-		})
+	if err != nil || crypto.PubkeyToAddress(*publicKey).Hex() != challenge.WalletAddress {
+		return NewHTTPError(http.StatusUnprocessableEntity, MsgInvalidSignature)
 	}
 
 	// Delete challenge
-	_, err = ct.DbProvider.DB.ExecContext(c.Request().Context(),
-		"DELETE FROM challenges WHERE token = ?", challengeToken,
+	_, err = ct.DB.ExecContext(c.Request().Context(),
+		"DELETE FROM challenges WHERE id = ?", challenge.Id,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to delete challenge (token: %s): %w", challengeToken, err)
 	}
 
-	return c.JSON(http.StatusOK, ChallengeController_ValidateResponse{Valid: true})
+	return c.NoContent(http.StatusNoContent)
 }
