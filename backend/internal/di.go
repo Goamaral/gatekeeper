@@ -16,7 +16,7 @@ func NewInjector() *do.Injector {
 
 	do.Provide(injector, func(_ *do.Injector) (*sql.DB, error) {
 		// TODO: Implement do.Shutdownable and do.Healthcheckable
-		return sql.Open("sqlite", "./db/database.sqlite")
+		return sql.Open("sqlite", RelativePath("../db/database.sqlite"))
 	})
 
 	return injector

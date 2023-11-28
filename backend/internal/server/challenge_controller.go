@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"gatekeeper/internal/entity"
 	"net/http"
@@ -112,13 +111,13 @@ func (ct ChallengeController) Validate(c echo.Context) error {
 		"SELECT id, wallet_address, expired_at FROM challenges WHERE token = ? LIMIT 1", challengeToken,
 	)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if sqlscan.NotFound(err) {
 			return NewHTTPError(http.StatusUnprocessableEntity, MsgChallengeDoesNotExistOrExpired)
 		}
-
 		return fmt.Errorf("failed to get challenge: %w", err)
 	}
-	fmt.Println(len(challenge.WalletAddress))
+
+	// Check if expired
 	if challenge.ExpiredAt.Before(time.Now()) {
 		return NewHTTPError(http.StatusUnprocessableEntity, MsgChallengeDoesNotExistOrExpired)
 	}
