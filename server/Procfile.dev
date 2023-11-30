@@ -1,2 +1,0 @@
-server: air
-css: pnpm run watch:css

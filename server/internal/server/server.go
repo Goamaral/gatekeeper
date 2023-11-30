@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"gatekeeper/public"
 	"log"
 	"net"
 	"net/http"
@@ -54,20 +53,11 @@ type Config struct {
 type Server struct {
 	Config        Config
 	EchoInst      *echo.Echo
-	PublicCtrl    PublicController
 	ChallengeCtrl ChallengeController
 }
 
 func NewServer(i *do.Injector, config Config) Server {
 	echoInst := echo.New()
-
-	if config.Env == "development" {
-		// cleanenv.
-		echoInst.Static("/public", "public")
-	} else {
-		echoInst.StaticFS("/public", public.FS)
-	}
-
 	echoInst.Use(middleware.Logger())
 	echoInst.Use(middleware.Recover())
 	echoInst.HTTPErrorHandler = func(err error, c echo.Context) {
@@ -104,7 +94,6 @@ func NewServer(i *do.Injector, config Config) Server {
 	return Server{
 		Config:        config,
 		EchoInst:      echoInst,
-		PublicCtrl:    NewPublicController(echoInst.Group("")),
 		ChallengeCtrl: NewChallengeController(echoInst.Group("/v1/challenges"), i),
 	}
 }

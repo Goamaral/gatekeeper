@@ -5,7 +5,6 @@ PROJECT_PATH=$SCRIPT_PATH/..
 cd $PROJECT_PATH
 
 go mod tidy
-pnpm i
 go install github.com/cosmtrek/air@latest
 
-npx nf --procfile Procfile.dev start
+air

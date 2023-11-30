@@ -3,7 +3,6 @@ module gatekeeper
 go 1.21
 
 require (
-	github.com/a-h/templ v0.2.476
 	github.com/ethereum/go-ethereum v1.13.5
 	github.com/georgysavva/scany v1.2.1
 	github.com/glebarez/go-sqlite v1.21.2
