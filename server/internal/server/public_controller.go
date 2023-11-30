@@ -18,6 +18,6 @@ func NewPublicController(echoGrp *echo.Group) PublicController {
 }
 
 func (ct PublicController) Index(c echo.Context) error {
-	return view.IndexPage("HELLO").
+	return view.IndexPage().
 		Render(c.Request().Context(), c.Response().Writer)
 }

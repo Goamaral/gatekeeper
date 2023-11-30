@@ -16,7 +16,7 @@ import (
 )
 
 func TestChallengeController_Issue(t *testing.T) {
-	s := server.NewServer(internal.NewTestInjector(t))
+	s := server.NewServer(internal.NewTestInjector(t), server.Config{Env: "test"})
 	res := internal.SendTestRequest(t, s,
 		http.MethodPost, "/v1/challenges/issue", server.ChallengeController_IssueRequest{WalletAddress: "WalletAddress"},
 	)
@@ -41,7 +41,7 @@ func TestChallengeController_Validate(t *testing.T) {
 	require.NoError(t, err)
 
 	sendReq := func(t *testing.T, challenge, signature string, expiredAt time.Time) *httptest.ResponseRecorder {
-		s := server.NewServer(internal.NewTestInjector(t))
+		s := server.NewServer(internal.NewTestInjector(t), server.Config{Env: "test"})
 
 		_, err = s.ChallengeCtrl.DB.ExecContext(context.Background(),
 			"INSERT INTO challenges (wallet_address, token, expired_at) VALUES (?, ?, ?)",

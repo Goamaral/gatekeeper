@@ -1,77 +1,83 @@
-import crypto from 'crypto'
-import ethers from 'ethers'
 
-function defaultGenerateChallengeToken (): string {
-  return crypto.randomBytes(10).toString('hex')
+import { providers } from 'ethers'
+import axios from 'axios'
+
+declare global {
+  interface Window {
+    ethereum: providers.ExternalProvider
+  }
 }
 
-export interface Store {
-  get: (key: string) => Promise<string | undefined>
-  set: (key: string, value: string) => Promise<void>
-  delete: (key: string) => Promise<void>
+interface Config {
+  getChallenge: (walletAddress: string) => Promise<string>
+  login: (walletAddress: string, signedChallenge: string) => Promise<void>
+  logout: () => Promise<void>
 }
 
-class MapStore implements Store {
-  map: Map<string, string>
-
+export const MetamaskNotInstalledError = class MetamaskNotInstalledError extends Error {
   constructor () {
-    this.map = new Map()
-  }
-
-  async get (key: any): Promise<string | undefined> {
-    return await Promise.resolve(this.map.get(key))
-  }
-
-  async set (key: any, value: any): Promise<void> {
-    this.map.set(key, value)
-    return await Promise.resolve()
-  }
-
-  async delete (key: string): Promise<void> {
-    this.map.delete(key)
-    return await Promise.resolve()
+    super('Metamask is not installed')
   }
 }
 
-interface ConstructorOptions {
-  store: Store | undefined
-  generateChallengeToken: (() => string) | undefined
-  challengeMessage: string | undefined
+async function getChallenge (walletAddress: string): Promise<string> {
+  const { challenge } = (await axios.post('/auth/challenge', { walletAddress })).data
+  return challenge
+}
+
+async function login (walletAddress: string, signedChallenge: string): Promise<void> {
+  await axios.post('/auth/login', { walletAddress, signedChallenge })
+}
+
+async function logout (): Promise<void> {
+  await axios.delete('/auth/logout')
 }
 
 export const Gatekeeper = class Gatekeeper {
-  store: Store
-  generateChallengeToken: () => string
-  challengeMessage: string
+  provider: providers.Web3Provider
+  connected: boolean
+  config: Config
 
-  constructor (opts?: ConstructorOptions) {
-    opts = { store: undefined, generateChallengeToken: undefined, challengeMessage: undefined, ...opts }
-    this.store = opts.store ?? new MapStore()
-    this.generateChallengeToken = opts.generateChallengeToken ?? defaultGenerateChallengeToken
-    this.challengeMessage = opts.challengeMessage ?? 'Login request\n'
-  }
+  constructor (config) {
+    if (window.ethereum === undefined) throw new MetamaskNotInstalledError()
+    this.provider = new providers.Web3Provider(window.ethereum)
+    this.connected = false
 
-  async issueChallenge (walletAddress: string): Promise<string> {
-    const challenge = `${this.challengeMessage}${this.generateChallengeToken()}`
-    await this.store.set(walletAddress, challenge)
-    return challenge
-  }
-
-  async validateSignedChallenge (walletAddress: string, signedChallenge: string): Promise<boolean> {
-    // Get challenge from store
-    const challenge = await this.store.get(walletAddress)
-    if (challenge === undefined) return false
-
-    // Get signer address from signed challenge
-    const signerAddress = ethers.utils.verifyMessage(challenge, signedChallenge)
-
-    // Check if signer address matches wallet address
-    if (signerAddress === walletAddress) {
-      await this.store.delete(walletAddress)
-      return true
-    } else {
-      return false
+    const defaultConfig: Config = {
+      getChallenge,
+      login,
+      logout
     }
+
+    this.config = { ...defaultConfig, ...config }
+  }
+
+  async init (): Promise<void> {
+    this.connected = (await this.provider.listAccounts()).length !== 0
+  }
+
+  async connectWallet (): Promise<void> {
+    await this.provider.send('eth_requestAccounts', [])
+    this.connected = true
+  }
+
+  get signer (): providers.JsonRpcSigner {
+    return this.provider.getSigner()
+  }
+
+  async getWalletAddress (): Promise<string> {
+    return await this.signer.getAddress()
+  }
+
+  async login (): Promise<void> {
+    const walletAddress = await this.getWalletAddress()
+    const challenge = await this.config.getChallenge(walletAddress)
+    const signedChallenge = await this.signer.signMessage(challenge)
+    await this.config.login(walletAddress, signedChallenge)
+  }
+
+  async logout (): Promise<void> {
+    await this.config.logout()
   }
 }
 

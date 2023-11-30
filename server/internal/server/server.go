@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"gatekeeper/public"
 	"log"
 	"net"
 	"net/http"
@@ -45,14 +46,28 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+type Config struct {
+	Env  string `env:"ENV" env-default:"production"`
+	Port uint   `env:"HTTP_PORT" env-default:"3000"`
+}
+
 type Server struct {
+	Config        Config
 	EchoInst      *echo.Echo
 	PublicCtrl    PublicController
 	ChallengeCtrl ChallengeController
 }
 
-func NewServer(i *do.Injector) Server {
+func NewServer(i *do.Injector, config Config) Server {
 	echoInst := echo.New()
+
+	if config.Env == "development" {
+		// cleanenv.
+		echoInst.Static("/public", "public")
+	} else {
+		echoInst.StaticFS("/public", public.FS)
+	}
+
 	echoInst.Use(middleware.Logger())
 	echoInst.Use(middleware.Recover())
 	echoInst.HTTPErrorHandler = func(err error, c echo.Context) {
@@ -87,16 +102,18 @@ func NewServer(i *do.Injector) Server {
 	}
 
 	return Server{
+		Config:        config,
 		EchoInst:      echoInst,
 		PublicCtrl:    NewPublicController(echoInst.Group("")),
 		ChallengeCtrl: NewChallengeController(echoInst.Group("/v1/challenges"), i),
 	}
 }
 
-func (s Server) Serve(addr string) error {
+func (s Server) Serve() error {
+	addr := fmt.Sprintf(":%d", s.Config.Port)
 	lst, err := net.Listen("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("failed to listen to tcp port: %w", err)
+		return fmt.Errorf("failed to listen to tcp port on %s: %w", addr, err)
 	}
 	log.Printf("Http server listening on %s", addr)
 	return s.EchoInst.Server.Serve(lst)

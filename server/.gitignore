@@ -1,3 +1,6 @@
 internal/view/*.go
 *.sqlite
 .env
+node_modules/
+public/
+tmp/

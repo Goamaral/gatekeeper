@@ -1,0 +1,19 @@
+{
+  "name": "gatekeeper-server",
+  "version": "0.1.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm run build:css",
+    "build:css": "tailwindcss -i assets/css/index.css -o public/css/index.css",
+    "watch:css": "tailwindcss --watch -i assets/css/index.css -o public/css/index.css"
+  },
+  "author": "Gonçalo Amaral",
+  "license": "ISC",
+  "devDependencies": {
+    "daisyui": "^4.3.1",
+    "foreman": "^3.0.1",
+    "tailwindcss": "^3.3.5"
+  }
+}

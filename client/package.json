@@ -13,8 +13,8 @@
   "scripts": {
     "test": "jest",
     "lint": "ts-standard --fix --env jest",
-    "build": "./bin/build",
-    "build:esm": "tsc -p ./tsconfig.json && mv dist/esm/index.js dist/esm/index.mjs",
+    "build": "rm -Rf ./dist && npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc -p ./tsconfig.json",
     "build:cjs": "tsc -p ./tsconfig.cjs.json",
     "prepare": "npm run build",
     "prepublishOnly": "npm test && npm run lint",
@@ -33,7 +33,7 @@
     "jest": "^29.3.1",
     "ts-jest": "^29.0.3",
     "ts-standard": "^12.0.2",
-    "typescript": "^4.9.4"
+    "typescript": "^4.9.5"
   },
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -46,11 +46,6 @@
       "import": "./dist/index.js",
       "require": "./dist/cjs/index.js",
       "types": "./dist/index.d.ts"
-    },
-    "./frontend": {
-      "import": "./dist/frontend.js",
-      "require": "./dist/cjs/frontend.js",
-      "types": "./dist/frontend.d.ts"
     }
   }
 }
