@@ -8,8 +8,8 @@
     "start": "node index.js",
     "dev": "nf --procfile Procfile.dev start",
     "build:frontend": "npm run build:frontend:js && npm run build:frontend:css",
-    "build:frontend:js": "esbuild --bundle frontend.js --outfile=public/index.js",
-    "build:frontend:css": "tailwindcss -i index.css -o public/index.css"
+    "build:frontend:js": "esbuild --bundle frontend/index.js --outfile=public/index.js",
+    "build:frontend:css": "tailwindcss -i frontend/index.css -o public/index.css"
   },
   "author": "Gonçalo Amaral",
   "license": "ISC",

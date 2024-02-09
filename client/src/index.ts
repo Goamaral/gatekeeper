@@ -14,7 +14,7 @@ interface Config {
   logout: () => Promise<void>
 }
 
-export const MetamaskNotInstalledError = class MetamaskNotInstalledError extends Error {
+export class MetamaskNotInstalledError extends Error {
   constructor () {
     super('Metamask is not installed')
   }
@@ -25,15 +25,15 @@ async function getChallenge (walletAddress: string): Promise<string> {
   return challenge
 }
 
-async function login (walletAddress: string, signedChallenge: string): Promise<void> {
-  await axios.post('/auth/login', { walletAddress, signedChallenge })
+async function login(challenge: string, signature: string): Promise<void> {
+  await axios.post('/auth/login', { challenge, signature })
 }
 
 async function logout (): Promise<void> {
   await axios.delete('/auth/logout')
 }
 
-export const Gatekeeper = class Gatekeeper {
+export class Gatekeeper {
   provider: providers.Web3Provider
   connected: boolean
   config: Config
@@ -72,8 +72,8 @@ export const Gatekeeper = class Gatekeeper {
   async login (): Promise<void> {
     const walletAddress = await this.getWalletAddress()
     const challenge = await this.config.getChallenge(walletAddress)
-    const signedChallenge = await this.signer.signMessage(challenge)
-    await this.config.login(walletAddress, signedChallenge)
+    const signature = await this.signer.signMessage(challenge)
+    await this.config.login(challenge, signature)
   }
 
   async logout (): Promise<void> {

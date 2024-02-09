@@ -1,4 +1,4 @@
-import Gatekeeper, { MetamaskNotInstalledError } from 'gatekeeper/frontend'
+import Gatekeeper, { MetamaskNotInstalledError } from 'gatekeeper'
 import axios from 'axios'
 
 const CONNECT_MODE = 1
@@ -41,7 +41,7 @@ window.onload = async () => {
     }
   }
 
-  function showError (err) {
+  function showError(err) {
     if (err instanceof Error) {
       errorMsgEl.innerText = err.message
     } else {
@@ -50,7 +50,7 @@ window.onload = async () => {
     errorEl.classList.remove('hidden')
   }
 
-  async function fetchAuthUser (visibleError = true) {
+  async function fetchAuthUser(visibleError = true) {
     try {
       return (await axios.get('/auth/user')).data.user
     } catch (err) {
@@ -58,11 +58,11 @@ window.onload = async () => {
     }
   }
 
-  function setUser (user) {
+  function setUser(user) {
     userEl.innerText = user ? JSON.stringify(user) : 'Not authenticated'
   }
 
-  async function setButtonMode (mode) {
+  async function setButtonMode(mode) {
     errorEl.classList.add('hidden')
 
     switch (mode) {
