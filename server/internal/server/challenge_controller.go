@@ -4,13 +4,13 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"fmt"
 	"gatekeeper/internal/entity"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"braces.dev/errtrace"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/georgysavva/scany/sqlscan"
@@ -70,7 +70,7 @@ func (ct ChallengeController) Issue(c echo.Context) error {
 	// Generate challenge token
 	challengeToken, err := GenerateChallengeToken()
 	if err != nil {
-		return fmt.Errorf("failed to generate challenge token: %w", err)
+		return errtrace.Errorf("failed to generate challenge token: %w", err)
 	}
 
 	// Save challenge
@@ -79,12 +79,14 @@ func (ct ChallengeController) Issue(c echo.Context) error {
 		req.WalletAddress, challengeToken, time.Now().UTC().Add(ChallengeValidDuration),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to save challenge: %w", err)
+		return errtrace.Errorf("failed to save challenge: %w", err)
 	}
 
-	return c.JSON(http.StatusOK, ChallengeController_IssueResponse{
-		Challenge: ChallengeMessagePrefix + challengeToken,
-	})
+	return errtrace.Wrap(
+		c.JSON(http.StatusOK, ChallengeController_IssueResponse{
+			Challenge: ChallengeMessagePrefix + challengeToken,
+		}),
+	)
 }
 
 type ChallengeController_VerifyRequest struct {
@@ -116,7 +118,7 @@ func (ct ChallengeController) Verify(c echo.Context) error {
 		if sqlscan.NotFound(err) {
 			return NewHTTPError(http.StatusUnprocessableEntity, MsgChallengeDoesNotExistOrExpired)
 		}
-		return fmt.Errorf("failed to get challenge: %w", err)
+		return errtrace.Errorf("failed to get challenge: %w", err)
 	}
 
 	// Check if expired
@@ -148,7 +150,7 @@ func (ct ChallengeController) Verify(c echo.Context) error {
 		"DELETE FROM challenges WHERE id = ?", challenge.Id,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to delete challenge (token: %s): %w", challengeToken, err)
+		return errtrace.Errorf("failed to delete challenge (token: %s): %w", challengeToken, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)

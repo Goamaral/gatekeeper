@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"gatekeeper/internal"
 	"log/slog"
 	"os"
 	"time"
 
+	"braces.dev/errtrace"
 	"github.com/go-co-op/gocron"
 	"github.com/labstack/gommon/log"
 	"github.com/samber/do"
@@ -44,7 +44,7 @@ func DeleteExpiredChallengesJob(i *do.Injector) error {
 
 	_, err := db.ExecContext(context.Background(), "DELETE FROM challenges WHERE expired_at <= ?", time.Now().UTC())
 	if err != nil {
-		return fmt.Errorf("failed to delete expired challenges: %w", err)
+		return errtrace.Errorf("failed to delete expired challenges: %w", err)
 	}
 
 	return nil

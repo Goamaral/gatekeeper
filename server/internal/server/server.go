@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 
+	"braces.dev/errtrace"
 	"github.com/gookit/validate"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -84,13 +85,19 @@ func NewServer(i *do.Injector, config Config) Server {
 		}
 
 		// Send response
-		if c.Request().Method == http.MethodHead { // Issue #608
-			err = c.NoContent(httpErr.Code)
-		} else {
-			err = c.JSON(httpErr.Code, msg)
+		if !c.Response().Committed {
+			if c.Request().Method == http.MethodHead {
+				err = c.NoContent(httpErr.Code)
+			} else {
+				err = c.JSON(httpErr.Code, msg)
+			}
+			if err != nil {
+				echoInst.Logger.Error(err)
+			}
 		}
-		if err != nil {
-			echoInst.Logger.Error(err)
+
+		if httpErr.Code == http.StatusInternalServerError {
+			echoInst.Logger.Error(httpErr)
 		}
 	}
 
@@ -107,8 +114,8 @@ func (s Server) Serve() error {
 	addr := fmt.Sprintf(":%d", s.Config.Port)
 	lst, err := net.Listen("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("failed to listen to tcp port on %s: %w", addr, err)
+		return errtrace.Errorf("failed to listen to tcp port on %s: %w", addr, err)
 	}
 	log.Printf("Http server listening on %s", addr)
-	return s.EchoInst.Server.Serve(lst)
+	return errtrace.Wrap(s.EchoInst.Server.Serve(lst))
 }
