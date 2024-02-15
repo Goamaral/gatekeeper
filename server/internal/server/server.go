@@ -38,7 +38,7 @@ func (e HTTPError) Error() string {
 var ErrRequestMalformed = NewHTTPError(http.StatusBadRequest, "Request malformed")
 
 func NewValidationErrorResponse(errs validate.Errors) HTTPError {
-	return NewHTTPError(http.StatusBadRequest, map[string]any{"errors": errs})
+	return NewHTTPError(http.StatusBadRequest, errs)
 }
 
 type ErrorResponse struct {
@@ -74,9 +74,12 @@ func NewServer(i *do.Injector, config Config) Server {
 		}
 
 		var msg any
-		if e, ok := httpErr.Err.(json.Marshaler); ok {
+		switch e := httpErr.Err.(type) {
+		case json.Marshaler:
 			msg = e
-		} else {
+		case validate.Errors:
+			msg = map[string]any{"errors": err}
+		default:
 			msg = ErrorResponse{Error: httpErr.Error()}
 		}
 
@@ -91,10 +94,12 @@ func NewServer(i *do.Injector, config Config) Server {
 		}
 	}
 
+	v1 := echoInst.Group("/v1")
+
 	return Server{
 		Config:        config,
 		EchoInst:      echoInst,
-		ChallengeCtrl: NewChallengeController(echoInst.Group("/v1/challenges"), i),
+		ChallengeCtrl: NewChallengeController(v1, i),
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"gatekeeper/internal/entity"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,8 +32,9 @@ func NewChallengeController(echoGrp *echo.Group, i *do.Injector) ChallengeContro
 		DB: do.MustInvoke[*sql.DB](i),
 	}
 
-	echoGrp.POST("/issue", ct.Issue)
-	echoGrp.POST("/validate", ct.Validate)
+	challenges := echoGrp.Group("/challenges")
+	challenges.POST("/issue", ct.Issue)
+	challenges.POST("/verify", ct.Verify)
 
 	return ct
 }
@@ -85,7 +87,7 @@ func (ct ChallengeController) Issue(c echo.Context) error {
 	})
 }
 
-type ChallengeController_ValidateRequest struct {
+type ChallengeController_VerifyRequest struct {
 	Challenge string `json:"challenge" validate:"required"`
 	Signature string `json:"signature" validate:"required"`
 }
@@ -93,8 +95,8 @@ type ChallengeController_ValidateRequest struct {
 const MsgChallengeDoesNotExistOrExpired = "Challenge does not exist or has expired"
 const MsgInvalidSignature = "Invalid signature for given challenge"
 
-func (ct ChallengeController) Validate(c echo.Context) error {
-	req := ChallengeController_ValidateRequest{}
+func (ct ChallengeController) Verify(c echo.Context) error {
+	req := ChallengeController_VerifyRequest{}
 	err := c.Bind(&req)
 	if err != nil {
 		return ErrRequestMalformed
@@ -122,14 +124,22 @@ func (ct ChallengeController) Validate(c echo.Context) error {
 		return NewHTTPError(http.StatusUnprocessableEntity, MsgChallengeDoesNotExistOrExpired)
 	}
 
-	// Validate message
-	challengeHash := crypto.Keccak256([]byte(req.Challenge))
+	// Verify message
+	// https://eips.ethereum.org/EIPS/eip-191
+	challengeHash := crypto.Keccak256([]byte("\x19Ethereum Signed Message:\n" + strconv.Itoa(len(req.Challenge)) + req.Challenge))
 	signature, err := hexutil.Decode(req.Signature)
 	if err != nil {
 		return NewHTTPError(http.StatusUnprocessableEntity, MsgInvalidSignature)
 	}
+	// https://eips.ethereum.org/EIPS/eip-155
+	if signature[64] == 27 || signature[64] == 28 {
+		signature[64] -= 27
+	}
 	publicKey, err := crypto.SigToPub(challengeHash, signature)
-	if err != nil || crypto.PubkeyToAddress(*publicKey).Hex() != challenge.WalletAddress {
+	if err != nil {
+		return NewHTTPError(http.StatusUnprocessableEntity, MsgInvalidSignature)
+	}
+	if crypto.PubkeyToAddress(*publicKey).Hex() != challenge.WalletAddress {
 		return NewHTTPError(http.StatusUnprocessableEntity, MsgInvalidSignature)
 	}
 
