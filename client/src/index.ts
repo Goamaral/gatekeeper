@@ -38,7 +38,7 @@ export class Gatekeeper {
   connected: boolean
   config: Config
 
-  constructor (config) {
+  constructor (config: Config) {
     if (window.ethereum === undefined) throw new MetamaskNotInstalledError()
     this.provider = new providers.Web3Provider(window.ethereum)
     this.connected = false

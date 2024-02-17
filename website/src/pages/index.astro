@@ -1,44 +1,43 @@
 ---
 import Layout from '../layouts/Layout.astro'
-import Header from '../components/header.astro'
-import Footer from '../components/footer.astro'
 ---
 <Layout>
-	<Header/>
-
-	<main class="flex-1">
-		<section class="flex justify-center py-32">
-			<div class="container px-6">
-				<h1 class="text-5xl font-bold tracking-tighter">Welcome to Gatekeeper</h1>
-				<p class="mt-2 text-xl text-gray-500">Allow your users to use their web3 wallets to login into your web2 app.</p>
-				<a href="/get-started" class="mt-8 btn btn-neutral">Get Started</a>
-			</div>
-		</section>
-
-		<div class="px-8">
-			<div class="divider"/>
+	<section class="flex justify-center py-32">
+		<div class="container px-6">
+			<h1 class="text-5xl font-bold tracking-tighter">Welcome to Gatekeeper</h1>
+			<p class="mt-2 text-xl text-gray-500">Allow your users to use their web3 wallets to login into your web2 app.</p>
+			<a href="/get-started" class="mt-8 btn btn-neutral">Get Started</a>
 		</div>
+	</section>
 
-		<section class="flex justify-center py-16">
-			<div class="container px-6">
-				<h2 class="text-5xl font-bold tracking-tighter text-center">Key Features</h2>
-				<div class="grid gap-8 mt-16 md:grid-cols-3 sm:grid-cols-2">
-					<div>
-						<h3 class="text-lg font-bold">Anonymity</h3>
-						<p class="text-sm text-gray-500">Authenticate without personal credentials (no emails, no usernames).</p>
-					</div>
-					<div>
-						<h3 class="text-lg font-bold">One wallet</h3>
-						<p class="text-sm text-gray-500">Use one wallet to authenticate into multiple apps.</p>
-					</div>
-					<div>
-						<h3 class="text-lg font-bold">Passwordless</h3>
-						<p class="text-sm text-gray-500">No need to remember yet another password.</p>
-					</div>
+	<div class="px-8">
+		<div class="divider"/>
+	</div>
+
+	<section class="flex justify-center py-16">
+		<div class="container px-6">
+			<h2 class="text-5xl font-bold tracking-tighter text-center">Key Features</h2>
+			<div class="grid gap-8 mt-16 md:grid-cols-3 sm:grid-cols-2">
+				<div>
+					<h3 class="text-lg font-bold">Anonymity</h3>
+					<p class="text-sm text-gray-500">Authenticate without personal credentials (no emails, no usernames).</p>
+				</div>
+				<div>
+					<h3 class="text-lg font-bold">One wallet</h3>
+					<p class="text-sm text-gray-500">Use one wallet to authenticate into multiple apps.</p>
+				</div>
+				<div>
+					<h3 class="text-lg font-bold">Passwordless</h3>
+					<p class="text-sm text-gray-500">No need to remember yet another password.</p>
 				</div>
 			</div>
-		</section>
-	</main>
-
-	<Footer/>
+		</div>
+	</section>
+	
+	<section class="flex justify-center py-16">
+		<div class="container px-6">
+			<h2 class="text-5xl font-bold tracking-tighter text-center">Supported wallets</h2>
+			<p>Metamask</p>
+		</div>
+	</section>
 </Layout>

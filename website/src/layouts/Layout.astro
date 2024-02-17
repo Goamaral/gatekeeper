@@ -1,4 +1,6 @@
 ---
+import Header from '../components/header.astro'
+import Footer from '../components/footer.astro'
 ---
 <!doctype html>
 <html lang="en" data-theme="light">
@@ -12,7 +14,13 @@
 	</head>
 	<body>
 		<div class="flex flex-col min-h-[100vh]">
-			<slot />
+			<Header />
+
+			<main class="flex-1">
+				<slot />
+			</main>
+
+			<Footer />
 		</div>
 	</body>
 </html>

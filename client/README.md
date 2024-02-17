@@ -7,7 +7,7 @@ another password
 ## Supported/Tested wallets
 - Metamask
 
-## Authentication steps
+## Authentication flow
 1. Connect wallet
 2. Issue challenge
 3. Login

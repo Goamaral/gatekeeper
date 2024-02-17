@@ -1,0 +1,55 @@
+---
+import Layout from '../layouts/Layout.astro'
+---
+
+<Layout>
+  <aside>
+    <p>Table of contents</p>
+    <ul>
+      <li><a href="#intro">Intro</a></li>
+      <li><a href="#authentication_flow">Authenction flow</a></li>
+      <li><a href="#client">Client</a></li>
+    </ul>
+  </aside>
+
+  <section id="intro">
+    <h2>Intro</h2>
+    <p>
+      Gatekeeper is an auth library and proviver that allows your users to use a
+      web3 wallet as a login method in your web2 app. This way users keep their anonymity,
+      can use one wallet to login into multiple web2 apps and don't need to remember/track
+      another password.
+    </p>
+  </section>
+
+  <section id="authentication_flow">
+    <h2>Authenction flow</h2>
+    <ol>
+      <li>Connect wallet</li>
+      <ol>
+        <li>Client connects to wallet</li>
+        <li>Client gets wallet address</li>
+      </ol>
+
+      <li>Issue challenge</li>
+      <ol>
+        <li>Client asks the server to issue a new challenge (wallet address is sent in the params)</li>
+        <li>Server generates a challenge and sends it to the client -> POST /v1/challenge</li>
+      </ol>
+
+      <li>Login</li>
+      <ol>
+        <li>Client signs challenge</li>
+        <li>Client sends a login request with wallet address and signed challenge</li>
+        <li>Server verifies signed challenge was signed by wallet address -> POST /v1/challenge/verify</li>
+        <li>Server sets the user as authenticated</li>
+      </ol>
+    </ol>
+  </section>
+
+  <section id="client">
+    <h2>Client</h2>
+    <p>The source code can be the best kind of documentation, specially when it is small.</p>
+    <a>TODO: Link to github src/index.ts file</a>
+  </section>
+</Layout>
