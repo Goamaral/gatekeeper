@@ -1,8 +1,9 @@
 #!/usr/bin/env sh
 SCRIPT_PATH=${0%/*}
 PROJECT_PATH=$SCRIPT_PATH/..
+DATABASE_URL=${DATABASE_URL:-sqlite:db/database.sqlite}
 
 cd $PROJECT_PATH
 
 docker pull amacneil/dbmate:latest
-docker run --rm -it --network=host --env-file=.env --volume=$PWD:/workdir --workdir=/workdir amacneil/dbmate $@ # TODO: Use go package
+docker run --rm -it --network=host -e DATABASE_URL=$DATABASE_URL --volume=$PWD:/workdir --workdir=/workdir amacneil/dbmate $@ # TODO: Use go package

@@ -3,10 +3,13 @@ module gatekeeper
 go 1.21
 
 require (
+	braces.dev/errtrace v0.3.0
 	github.com/ethereum/go-ethereum v1.13.5
 	github.com/georgysavva/scany v1.2.1
 	github.com/glebarez/go-sqlite v1.21.2
 	github.com/go-co-op/gocron v1.36.0
+	github.com/golang-jwt/jwt/v5 v5.2.0
+	github.com/google/uuid v1.6.0
 	github.com/gookit/validate v1.5.1
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/labstack/echo/v4 v4.11.3
@@ -16,14 +19,12 @@ require (
 )
 
 require (
-	braces.dev/errtrace v0.3.0 // indirect
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
-	github.com/google/uuid v1.4.0 // indirect
 	github.com/gookit/filter v1.2.0 // indirect
 	github.com/gookit/goutil v0.6.12 // indirect
 	github.com/holiman/uint256 v1.2.3 // indirect

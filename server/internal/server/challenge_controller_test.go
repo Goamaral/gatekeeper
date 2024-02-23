@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"gatekeeper/internal"
 	"gatekeeper/internal/server"
 	"gatekeeper/pkg/crypto_ext"
@@ -39,44 +38,74 @@ func TestChallengeController_Verify(t *testing.T) {
 	signatureB, err := crypto_ext.PersonalSign([]byte(challengeB), privateKeyB)
 	require.NoError(t, err)
 
-	sendReq := func(t *testing.T, challenge, signature string, expiredAt time.Time) *httptest.ResponseRecorder {
+	type Test struct {
+		ExpiredAt time.Time
+	}
+
+	newTest := func(test Test, testFn func(t *testing.T, s server.Server)) func(t *testing.T) {
 		s := server.NewServer(internal.NewTestInjector(t), server.Config{Env: "test"})
 
-		_, err = s.ChallengeCtrl.DB.ExecContext(context.Background(),
+		_, err = s.ChallengeCtrl.DB.Exec(
 			"INSERT INTO challenges (wallet_address, token, expired_at) VALUES (?, ?, ?)",
-			walletAddressA, challengeTokenA, expiredAt,
+			walletAddressA, challengeTokenA, test.ExpiredAt,
 		)
 		require.NoError(t, err)
 
+		return func(t *testing.T) { testFn(t, s) }
+	}
+
+	sendReq := func(t *testing.T, s server.Server, challenge, signature string) *httptest.ResponseRecorder {
 		return internal.SendTestRequest(
 			t, s, http.MethodPost, "/v1/challenges/verify",
 			server.ChallengeController_VerifyRequest{Challenge: challenge, Signature: signature},
 		)
 	}
 
-	t.Run("Success", func(t *testing.T) {
-		res := sendReq(t, challengeA, hexutil.Encode(signatureA), time.Now().UTC().Add(time.Minute))
-		require.Equal(t, http.StatusNoContent, res.Code)
-	})
+	t.Run("Success", newTest(
+		Test{ExpiredAt: time.Now().UTC().Add(time.Minute)},
+		func(t *testing.T, s server.Server) {
+			res := sendReq(t, s, challengeA, hexutil.Encode(signatureA))
+			require.Equal(t, http.StatusOK, res.Code)
+			body := internal.ReadBody[server.ChallengeController_VerifyResponse](t, res.Body)
 
-	t.Run("ChallengeDoesNotExist", func(t *testing.T) {
-		res := sendReq(t, challengeB, hexutil.Encode(signatureB), time.Now().UTC().Add(time.Minute))
-		require.Equal(t, http.StatusUnprocessableEntity, res.Code)
-		body := internal.ReadBody[server.ErrorResponse](t, res.Body)
-		assert.Equal(t, server.MsgChallengeDoesNotExistOrExpired, body.Error)
-	})
+			claims, err := s.ChallengeCtrl.JwtProvider.GetClaims(body.ProofToken)
+			require.NoError(t, err)
+			sub, err := claims.GetSubject()
+			require.NoError(t, err)
+			assert.Equal(t, walletAddressA, sub)
+			expiredAt, err := claims.GetExpirationTime()
+			require.NoError(t, err)
+			assert.Greater(t, expiredAt.Time, time.Now())
+		},
+	))
 
-	t.Run("ChallengeExpired", func(t *testing.T) {
-		res := sendReq(t, challengeA, hexutil.Encode(signatureA), time.Now().UTC().Add(-time.Minute))
-		require.Equal(t, http.StatusUnprocessableEntity, res.Code)
-		body := internal.ReadBody[server.ErrorResponse](t, res.Body)
-		assert.Equal(t, server.MsgChallengeDoesNotExistOrExpired, body.Error)
-	})
+	t.Run("ChallengeDoesNotExist", newTest(
+		Test{ExpiredAt: time.Now().UTC().Add(time.Minute)},
+		func(t *testing.T, s server.Server) {
+			res := sendReq(t, s, challengeB, hexutil.Encode(signatureB))
+			require.Equal(t, http.StatusUnprocessableEntity, res.Code)
+			body := internal.ReadBody[server.ErrorResponse](t, res.Body)
+			assert.Equal(t, server.MsgChallengeDoesNotExistOrExpired, body.Error)
+		},
+	))
 
-	t.Run("InvalidSignature", func(t *testing.T) {
-		res := sendReq(t, challengeA, hexutil.Encode(signatureB), time.Now().UTC().Add(time.Minute))
-		require.Equal(t, http.StatusUnprocessableEntity, res.Code)
-		body := internal.ReadBody[server.ErrorResponse](t, res.Body)
-		assert.Equal(t, server.MsgInvalidSignature, body.Error)
-	})
+	t.Run("ChallengeExpired", newTest(
+		Test{ExpiredAt: time.Now().UTC().Add(-time.Minute)},
+		func(t *testing.T, s server.Server) {
+			res := sendReq(t, s, challengeA, hexutil.Encode(signatureA))
+			require.Equal(t, http.StatusUnprocessableEntity, res.Code)
+			body := internal.ReadBody[server.ErrorResponse](t, res.Body)
+			assert.Equal(t, server.MsgChallengeDoesNotExistOrExpired, body.Error)
+		},
+	))
+
+	t.Run("InvalidSignature", newTest(
+		Test{ExpiredAt: time.Now().UTC().Add(time.Minute)},
+		func(t *testing.T, s server.Server) {
+			res := sendReq(t, s, challengeA, hexutil.Encode(signatureB))
+			require.Equal(t, http.StatusUnprocessableEntity, res.Code)
+			body := internal.ReadBody[server.ErrorResponse](t, res.Body)
+			assert.Equal(t, server.MsgSignatureInvalid, body.Error)
+		},
+	))
 }

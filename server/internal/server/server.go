@@ -55,6 +55,7 @@ type Server struct {
 	Config        Config
 	EchoInst      *echo.Echo
 	ChallengeCtrl ChallengeController
+	AccountCtrl   AccountController
 }
 
 func NewServer(i *do.Injector, config Config) Server {
@@ -107,6 +108,7 @@ func NewServer(i *do.Injector, config Config) Server {
 		Config:        config,
 		EchoInst:      echoInst,
 		ChallengeCtrl: NewChallengeController(v1, i),
+		AccountCtrl:   NewAccountController(v1, i),
 	}
 }
 

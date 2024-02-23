@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"gatekeeper/internal/entity"
+	"gatekeeper/pkg/jwt_provider"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/georgysavva/scany/sqlscan"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gookit/validate"
 	"github.com/labstack/echo/v4"
 	"github.com/samber/do"
@@ -24,12 +26,14 @@ const ChallengeMessagePrefix = "Login request\n"
 const ChallengeValidDuration = 5 * time.Minute
 
 type ChallengeController struct {
-	DB *sql.DB
+	DB          *sql.DB
+	JwtProvider jwt_provider.Provider
 }
 
 func NewChallengeController(echoGrp *echo.Group, i *do.Injector) ChallengeController {
 	ct := ChallengeController{
-		DB: do.MustInvoke[*sql.DB](i),
+		DB:          do.MustInvoke[*sql.DB](i),
+		JwtProvider: do.MustInvoke[jwt_provider.Provider](i),
 	}
 
 	challenges := echoGrp.Group("/challenges")
@@ -94,8 +98,12 @@ type ChallengeController_VerifyRequest struct {
 	Signature string `json:"signature" validate:"required"`
 }
 
+type ChallengeController_VerifyResponse struct {
+	ProofToken string `json:"proofToken"`
+}
+
 const MsgChallengeDoesNotExistOrExpired = "Challenge does not exist or has expired"
-const MsgInvalidSignature = "Invalid signature for given challenge"
+const MsgSignatureInvalid = "Signature is invalid for given challenge"
 
 func (ct ChallengeController) Verify(c echo.Context) error {
 	req := ChallengeController_VerifyRequest{}
@@ -131,7 +139,7 @@ func (ct ChallengeController) Verify(c echo.Context) error {
 	challengeHash := crypto.Keccak256([]byte("\x19Ethereum Signed Message:\n" + strconv.Itoa(len(req.Challenge)) + req.Challenge))
 	signature, err := hexutil.Decode(req.Signature)
 	if err != nil {
-		return NewHTTPError(http.StatusUnprocessableEntity, MsgInvalidSignature)
+		return NewHTTPError(http.StatusUnprocessableEntity, MsgSignatureInvalid)
 	}
 	// https://eips.ethereum.org/EIPS/eip-155
 	if signature[64] == 27 || signature[64] == 28 {
@@ -139,10 +147,10 @@ func (ct ChallengeController) Verify(c echo.Context) error {
 	}
 	publicKey, err := crypto.SigToPub(challengeHash, signature)
 	if err != nil {
-		return NewHTTPError(http.StatusUnprocessableEntity, MsgInvalidSignature)
+		return NewHTTPError(http.StatusUnprocessableEntity, MsgSignatureInvalid)
 	}
 	if crypto.PubkeyToAddress(*publicKey).Hex() != challenge.WalletAddress {
-		return NewHTTPError(http.StatusUnprocessableEntity, MsgInvalidSignature)
+		return NewHTTPError(http.StatusUnprocessableEntity, MsgSignatureInvalid)
 	}
 
 	// Delete challenge
@@ -153,5 +161,16 @@ func (ct ChallengeController) Verify(c echo.Context) error {
 		return errtrace.Errorf("failed to delete challenge (token: %s): %w", challengeToken, err)
 	}
 
-	return c.NoContent(http.StatusNoContent)
+	// Generate proof token
+	proofToken, err := ct.JwtProvider.GenerateSignedToken(jwt.RegisteredClaims{
+		Subject:   challenge.WalletAddress,
+		ExpiresAt: &jwt.NumericDate{Time: time.Now().Add(5 * time.Minute)},
+	})
+	if err != nil {
+		return errtrace.Errorf("failed to generate proof token: %w", err)
+	}
+
+	return errtrace.Wrap(
+		c.JSON(http.StatusOK, ChallengeController_VerifyResponse{ProofToken: proofToken}),
+	)
 }
