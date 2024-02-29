@@ -1,4 +1,4 @@
-package internal
+package test
 
 import (
 	"bytes"
@@ -8,8 +8,6 @@ import (
 	"gatekeeper/pkg/jwt_provider"
 	"io"
 	"net/http/httptest"
-	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -29,12 +27,6 @@ func SendTestRequest(t *testing.T, s server.Server, method, path string, body an
 	res := httptest.NewRecorder()
 	s.EchoInst.ServeHTTP(res, req)
 	return res
-}
-
-func RelativePath(relativePath string) string {
-	_, file, _, _ := runtime.Caller(1)
-	folderPath := filepath.Dir(file)
-	return folderPath + "/" + relativePath
 }
 
 func GenerateWalletAddress(t *testing.T) (string, *ecdsa.PrivateKey) {

@@ -10,7 +10,6 @@ import (
 
 	"braces.dev/errtrace"
 	"github.com/go-co-op/gocron"
-	"github.com/labstack/gommon/log"
 	"github.com/samber/do"
 )
 
@@ -32,7 +31,7 @@ func main() {
 
 	s.RegisterEventListeners(
 		gocron.WhenJobReturnsError(func(jobName string, err error) {
-			log.Errorf("%s: %s", jobName, err)
+			slog.Error("%s: %s", jobName, err)
 		}),
 	)
 

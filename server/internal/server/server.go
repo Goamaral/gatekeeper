@@ -80,7 +80,7 @@ func NewServer(i *do.Injector, config Config) Server {
 		case json.Marshaler:
 			msg = e
 		case validate.Errors:
-			msg = map[string]any{"errors": err}
+			msg = map[string]any{"errors": e}
 		default:
 			msg = ErrorResponse{Error: httpErr.Error()}
 		}

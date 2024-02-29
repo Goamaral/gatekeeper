@@ -3,6 +3,7 @@ package internal
 import (
 	"database/sql"
 	"fmt"
+	"gatekeeper/internal/helper"
 	"gatekeeper/pkg/fs"
 	"gatekeeper/pkg/jwt_provider"
 	"os"
@@ -19,7 +20,7 @@ func NewInjector() *do.Injector {
 
 	do.Provide(injector, func(_ *do.Injector) (*sql.DB, error) {
 		// TODO: Implement do.Shutdownable and do.Healthcheckable
-		return sql.Open("sqlite", RelativePath("../db/database.sqlite"))
+		return sql.Open("sqlite", helper.RelativePath("../db/database.sqlite"))
 	})
 
 	do.Provide(injector, func(i *do.Injector) (jwt_provider.Provider, error) {
@@ -48,10 +49,15 @@ func NewTestInjector(t *testing.T) *do.Injector {
 		}
 
 		// Load schema
-		schemaSqlBytes, err := os.ReadFile(RelativePath("../db/schema.sql"))
+		schemaSqlBytes, err := os.ReadFile(helper.RelativePath("../db/schema.sql"))
+		require.NoError(t, err)
+		_, err = db.Exec(string(schemaSqlBytes))
 		require.NoError(t, err)
 
-		_, err = db.Exec(string(schemaSqlBytes))
+		// Load seed
+		seedSqlBytes, err := os.ReadFile(helper.RelativePath("../db/seed.sql"))
+		require.NoError(t, err)
+		_, err = db.Exec(string(seedSqlBytes))
 		require.NoError(t, err)
 
 		return db, nil

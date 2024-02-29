@@ -3,6 +3,7 @@ package server_test
 import (
 	"gatekeeper/internal"
 	"gatekeeper/internal/server"
+	"gatekeeper/internal/test"
 	"gatekeeper/pkg/crypto_ext"
 	"net/http"
 	"net/http/httptest"
@@ -16,7 +17,7 @@ import (
 
 func TestChallengeController_Issue(t *testing.T) {
 	s := server.NewServer(internal.NewTestInjector(t), server.Config{Env: "test"})
-	res := internal.SendTestRequest(
+	res := test.SendTestRequest(
 		t, s, http.MethodPost, "/v1/challenges/issue",
 		server.ChallengeController_IssueRequest{WalletAddress: "WalletAddress"},
 	)
@@ -24,14 +25,14 @@ func TestChallengeController_Issue(t *testing.T) {
 }
 
 func TestChallengeController_Verify(t *testing.T) {
-	walletAddressA, privateKeyA := internal.GenerateWalletAddress(t)
+	walletAddressA, privateKeyA := test.GenerateWalletAddress(t)
 	challengeTokenA, err := server.GenerateChallengeToken()
 	require.NoError(t, err)
 	challengeA := server.ChallengeMessagePrefix + challengeTokenA
 	signatureA, err := crypto_ext.PersonalSign([]byte(challengeA), privateKeyA)
 	require.NoError(t, err)
 
-	_, privateKeyB := internal.GenerateWalletAddress(t)
+	_, privateKeyB := test.GenerateWalletAddress(t)
 	challengeTokenB, err := server.GenerateChallengeToken()
 	require.NoError(t, err)
 	challengeB := server.ChallengeMessagePrefix + challengeTokenB
@@ -55,7 +56,7 @@ func TestChallengeController_Verify(t *testing.T) {
 	}
 
 	sendReq := func(t *testing.T, s server.Server, challenge, signature string) *httptest.ResponseRecorder {
-		return internal.SendTestRequest(
+		return test.SendTestRequest(
 			t, s, http.MethodPost, "/v1/challenges/verify",
 			server.ChallengeController_VerifyRequest{Challenge: challenge, Signature: signature},
 		)
@@ -66,7 +67,7 @@ func TestChallengeController_Verify(t *testing.T) {
 		func(t *testing.T, s server.Server) {
 			res := sendReq(t, s, challengeA, hexutil.Encode(signatureA))
 			require.Equal(t, http.StatusOK, res.Code)
-			body := internal.ReadBody[server.ChallengeController_VerifyResponse](t, res.Body)
+			body := test.ReadBody[server.ChallengeController_VerifyResponse](t, res.Body)
 
 			claims, err := s.ChallengeCtrl.JwtProvider.GetClaims(body.ProofToken)
 			require.NoError(t, err)
@@ -84,7 +85,7 @@ func TestChallengeController_Verify(t *testing.T) {
 		func(t *testing.T, s server.Server) {
 			res := sendReq(t, s, challengeB, hexutil.Encode(signatureB))
 			require.Equal(t, http.StatusUnprocessableEntity, res.Code)
-			body := internal.ReadBody[server.ErrorResponse](t, res.Body)
+			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgChallengeDoesNotExistOrExpired, body.Error)
 		},
 	))
@@ -94,7 +95,7 @@ func TestChallengeController_Verify(t *testing.T) {
 		func(t *testing.T, s server.Server) {
 			res := sendReq(t, s, challengeA, hexutil.Encode(signatureA))
 			require.Equal(t, http.StatusUnprocessableEntity, res.Code)
-			body := internal.ReadBody[server.ErrorResponse](t, res.Body)
+			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgChallengeDoesNotExistOrExpired, body.Error)
 		},
 	))
@@ -104,7 +105,7 @@ func TestChallengeController_Verify(t *testing.T) {
 		func(t *testing.T, s server.Server) {
 			res := sendReq(t, s, challengeA, hexutil.Encode(signatureB))
 			require.Equal(t, http.StatusUnprocessableEntity, res.Code)
-			body := internal.ReadBody[server.ErrorResponse](t, res.Body)
+			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgSignatureInvalid, body.Error)
 		},
 	))

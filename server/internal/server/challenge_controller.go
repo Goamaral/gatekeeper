@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"gatekeeper/internal/entity"
 	"gatekeeper/pkg/jwt_provider"
 	"net/http"
@@ -123,7 +124,7 @@ func (ct ChallengeController) Verify(c echo.Context) error {
 		"SELECT id, wallet_address, expired_at FROM challenges WHERE token = ? LIMIT 1", challengeToken,
 	)
 	if err != nil {
-		if sqlscan.NotFound(err) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return NewHTTPError(http.StatusUnprocessableEntity, MsgChallengeDoesNotExistOrExpired)
 		}
 		return errtrace.Errorf("failed to get challenge: %w", err)

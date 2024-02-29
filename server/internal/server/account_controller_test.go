@@ -3,64 +3,85 @@ package server_test
 import (
 	"gatekeeper/internal"
 	"gatekeeper/internal/server"
+	"gatekeeper/internal/test"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAccountController_Create(t *testing.T) {
-	walletAddress, _ := internal.GenerateWalletAddress(t)
-	email := "test@gatekeeper.com"
+	walletAddress, _ := test.GenerateWalletAddress(t)
+	metadata := []byte("{\"email\": \"client@gatekeeper.com\"}")
+
+	newProofToken := func(t *testing.T, s server.Server, walletAddress string) string {
+		return test.GenerateProofToken(
+			t, s.AccountCtrl.JwtProvider,
+			walletAddress,
+			time.Now().Add(time.Minute),
+		)
+	}
 
 	newTest := func(testFn func(t *testing.T, s server.Server)) func(t *testing.T) {
 		s := server.NewServer(internal.NewTestInjector(t), server.Config{Env: "test"})
 		return func(t *testing.T) { testFn(t, s) }
 	}
-
-	sendReq := func(t *testing.T, s server.Server, proofToken, email string) *httptest.ResponseRecorder {
-		return internal.SendTestRequest(
+	sendReq := func(t *testing.T, s server.Server, apiKey, proofToken string, metadata []byte) *httptest.ResponseRecorder {
+		return test.SendTestRequest(
 			t, s, http.MethodPost, "/v1/accounts",
-			server.AccountController_CreateRequest{ProofToken: proofToken, Email: email},
+			server.AccountController_CreateRequest{ApiKey: apiKey, ProofToken: proofToken, Metadata: metadata},
 		)
 	}
 
 	t.Run("Success", newTest(
 		func(t *testing.T, s server.Server) {
-			proofToken := internal.GenerateProofToken(
-				t, s.AccountCtrl.JwtProvider,
-				walletAddress,
-				time.Now().Add(time.Minute),
-			)
-			res := sendReq(t, s, proofToken, email)
+			res := sendReq(t, s, test.ApiKey, newProofToken(t, s, walletAddress), metadata)
 			require.Equal(t, http.StatusNoContent, res.Code)
+		},
+	))
+
+	t.Run("ApiKeyInvalid", newTest(
+		func(t *testing.T, s server.Server) {
+			res := sendReq(t, s, "jiberish", newProofToken(t, s, walletAddress), metadata)
+			require.Equal(t, http.StatusBadRequest, res.Code)
+			body := test.ReadBody[server.ErrorResponse](t, res.Body)
+			assert.Equal(t, server.MsgApiKeyIsInvalid, body.Error)
+		},
+	))
+
+	t.Run("MetadataInvalid", newTest(
+		func(t *testing.T, s server.Server) {
+			res := sendReq(t, s, test.ApiKey, newProofToken(t, s, walletAddress), []byte("jiberish"))
+			require.Equal(t, http.StatusBadRequest, res.Code)
+			body := test.ReadBody[server.ErrorResponse](t, res.Body)
+			assert.Equal(t, server.MsgMetadataIsInvalid, body.Error)
 		},
 	))
 
 	t.Run("ProofTokenInvalid", newTest(
 		func(t *testing.T, s server.Server) {
-			res := sendReq(t, s, "jiberish", email)
-			require.Equal(t, http.StatusUnprocessableEntity, res.Code)
-			body := internal.ReadBody[server.ErrorResponse](t, res.Body)
+			res := sendReq(t, s, test.ApiKey, "jiberish", metadata)
+			require.Equal(t, http.StatusBadRequest, res.Code)
+			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgProofTokenIsInvalidOrExpired, body.Error)
 		},
 	))
 
 	t.Run("ProofTokenExpired", newTest(
 		func(t *testing.T, s server.Server) {
-			proofToken := internal.GenerateProofToken(
+			proofToken := test.GenerateProofToken(
 				t, s.AccountCtrl.JwtProvider,
 				walletAddress,
 				time.Now().Add(-time.Minute),
 			)
-			res := sendReq(t, s, proofToken, email)
-			require.Equal(t, http.StatusUnprocessableEntity, res.Code)
-			body := internal.ReadBody[server.ErrorResponse](t, res.Body)
+
+			res := sendReq(t, s, test.ApiKey, proofToken, metadata)
+			require.Equal(t, http.StatusBadRequest, res.Code)
+			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgProofTokenIsInvalidOrExpired, body.Error)
 		},
 	))
@@ -70,9 +91,9 @@ func TestAccountController_Create(t *testing.T) {
 			proofToken, err := s.AccountCtrl.JwtProvider.GenerateSignedToken(jwt.RegisteredClaims{Subject: walletAddress})
 			require.NoError(t, err)
 
-			res := sendReq(t, s, proofToken, email)
-			require.Equal(t, http.StatusUnprocessableEntity, res.Code)
-			body := internal.ReadBody[server.ErrorResponse](t, res.Body)
+			res := sendReq(t, s, test.ApiKey, proofToken, metadata)
+			require.Equal(t, http.StatusBadRequest, res.Code)
+			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgProofTokenIsInvalidOrExpired, body.Error)
 		},
 	))
@@ -84,34 +105,18 @@ func TestAccountController_Create(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			res := sendReq(t, s, proofToken, email)
-			require.Equal(t, http.StatusUnprocessableEntity, res.Code)
-			body := internal.ReadBody[server.ErrorResponse](t, res.Body)
+			res := sendReq(t, s, test.ApiKey, proofToken, metadata)
+			require.Equal(t, http.StatusBadRequest, res.Code)
+			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgProofTokenIsInvalidOrExpired, body.Error)
 		},
 	))
 
 	t.Run("DuplicateWalletAddress", newTest(
 		func(t *testing.T, s server.Server) {
-			accountUuid, err := uuid.NewV7()
-			require.NoError(t, err)
-			apiKey, err := server.GenerateApiKey(accountUuid)
-			require.NoError(t, err)
-			_, err = s.AccountCtrl.DB.Exec(
-				"INSERT INTO accounts (uuid, api_key, email, wallet_address) VALUES (?, ?, ?, ?)",
-				accountUuid, apiKey, email, walletAddress,
-			)
-			require.NoError(t, err)
-
-			proofToken := internal.GenerateProofToken(
-				t, s.AccountCtrl.JwtProvider,
-				walletAddress,
-				time.Now().Add(time.Minute),
-			)
-
-			res := sendReq(t, s, proofToken, email)
+			res := sendReq(t, s, test.ApiKey, newProofToken(t, s, test.WalletAddress), metadata)
 			require.Equal(t, http.StatusUnprocessableEntity, res.Code)
-			body := internal.ReadBody[server.ErrorResponse](t, res.Body)
+			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgAccountAlreadyExists, body.Error)
 		},
 	))

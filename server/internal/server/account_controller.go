@@ -1,15 +1,15 @@
 package server
 
 import (
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"gatekeeper/pkg/jwt_provider"
 	"gatekeeper/pkg/sqlite_ext"
 	"net/http"
-	"strings"
 
 	"braces.dev/errtrace"
+	"github.com/georgysavva/scany/sqlscan"
 	"github.com/google/uuid"
 	"github.com/gookit/validate"
 	"github.com/labstack/echo/v4"
@@ -35,23 +35,17 @@ func NewAccountController(echoGrp *echo.Group, i *do.Injector) AccountController
 }
 
 type AccountController_CreateRequest struct {
+	ApiKey     string `json:"apiKey" validate:"required"`
 	ProofToken string `json:"proofToken" validate:"required"`
-	Email      string `json:"email" validate:"required|email"`
+	Metadata   []byte `json:"metadata" validate:"-"`
 }
 
-const MsgProofTokenIsInvalidOrExpired = "Proof token is invalid or has expired"
-const MsgAccountAlreadyExists = "Account already exists"
-const ApiKeySuffixLength = 16
-
-func GenerateApiKey(accountUuid uuid.UUID) (string, error) {
-	b := make([]byte, ApiKeySuffixLength)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
-	compactAccoutnUuid := strings.ReplaceAll(accountUuid.String(), "-", "")
-	return compactAccoutnUuid + base64.URLEncoding.EncodeToString(b), nil
-}
+const (
+	MsgMetadataIsInvalid            = "Metadata is invalid"
+	MsgApiKeyIsInvalid              = "Api key is invalid"
+	MsgProofTokenIsInvalidOrExpired = "Proof token is invalid or has expired"
+	MsgAccountAlreadyExists         = "Account already exists"
+)
 
 func (ct AccountController) Create(c echo.Context) error {
 	req := AccountController_CreateRequest{}
@@ -64,38 +58,53 @@ func (ct AccountController) Create(c echo.Context) error {
 		return NewValidationErrorResponse(v.Errors)
 	}
 
+	// Check if api key exists
+	var companyUuid string
+	err = sqlscan.Get(c.Request().Context(), ct.DB, &companyUuid,
+		"SELECT uuid FROM companies WHERE api_key = ?", req.ApiKey,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return NewHTTPError(http.StatusBadRequest, MsgApiKeyIsInvalid)
+		}
+		return errtrace.Errorf("failed to check if api key exists: %w", err)
+	}
+
+	// Unmarshal metadata
+	metadata := map[string]any{}
+	err = json.Unmarshal(req.Metadata, &metadata)
+	if err != nil {
+		return NewHTTPError(http.StatusBadRequest, MsgMetadataIsInvalid)
+	}
+
 	// Check if proof token is invalid or has expired and extract wallet address
 	claims, err := ct.JwtProvider.GetClaims(req.ProofToken)
 	if err != nil {
-		return NewHTTPError(http.StatusUnprocessableEntity, MsgProofTokenIsInvalidOrExpired)
+		return NewHTTPError(http.StatusBadRequest, MsgProofTokenIsInvalidOrExpired)
 	}
 	jwtExpiredAt, err := claims.GetExpirationTime()
 	if err != nil {
 		return errtrace.Errorf("failed to get expiration time from claims: %w", err)
 	}
 	if jwtExpiredAt == nil {
-		return NewHTTPError(http.StatusUnprocessableEntity, MsgProofTokenIsInvalidOrExpired)
+		return NewHTTPError(http.StatusBadRequest, MsgProofTokenIsInvalidOrExpired)
 	}
 	walletAddress, err := claims.GetSubject()
 	if err != nil {
 		return errtrace.Errorf("failed to get subject from claims: %w", err)
 	}
 	if len(walletAddress) == 0 {
-		return NewHTTPError(http.StatusUnprocessableEntity, MsgProofTokenIsInvalidOrExpired)
+		return NewHTTPError(http.StatusBadRequest, MsgProofTokenIsInvalidOrExpired)
 	}
 
-	// Create api key and account
+	// Create account
 	accountUuid, err := uuid.NewV7()
 	if err != nil {
 		return errtrace.Errorf("failed to generate account uuid: %w", err)
 	}
-	apiKey, err := GenerateApiKey(accountUuid)
-	if err != nil {
-		return errtrace.Errorf("failed to generate api key: %w", err)
-	}
 	_, err = ct.DB.ExecContext(c.Request().Context(),
-		"INSERT INTO accounts (uuid, api_key, email, wallet_address) VALUES (?, ?, ?, ?)",
-		accountUuid, apiKey, req.Email, walletAddress,
+		"INSERT INTO accounts (uuid, company_uuid, wallet_address, metadata) VALUES (?, ?, ?, ?)",
+		accountUuid, companyUuid, walletAddress, req.Metadata,
 	)
 	if err != nil {
 		if sqlite_ext.HasErrCode(err, sqlite3.SQLITE_CONSTRAINT_UNIQUE) {
