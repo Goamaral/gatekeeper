@@ -23,7 +23,7 @@ import (
 )
 
 const ChallengeTokenLength uint = 16
-const ChallengeMessagePrefix = "Login request\n"
+const ChallengeMessagePrefix = "Authentication request\n"
 const ChallengeValidDuration = 5 * time.Minute
 
 type ChallengeController struct {

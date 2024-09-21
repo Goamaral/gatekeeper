@@ -37,7 +37,7 @@ func NewAccountController(echoGrp *echo.Group, i *do.Injector) AccountController
 type AccountController_CreateRequest struct {
 	ApiKey     string `json:"apiKey" validate:"required"`
 	ProofToken string `json:"proofToken" validate:"required"`
-	Metadata   []byte `json:"metadata" validate:"-"`
+	Metadata   any    `json:"metadata" validate:"-"`
 }
 
 const (
@@ -71,10 +71,14 @@ func (ct AccountController) Create(c echo.Context) error {
 	}
 
 	// Unmarshal metadata
-	metadata := map[string]any{}
-	err = json.Unmarshal(req.Metadata, &metadata)
-	if err != nil {
-		return NewHTTPError(http.StatusBadRequest, MsgMetadataIsInvalid)
+	metadataOpt := sql.Null[[]byte]{}
+	if req.Metadata != nil {
+		metadataBytes, err := json.Marshal(req.Metadata)
+		if err != nil {
+			// Can't think how this can happen
+			return NewHTTPError(http.StatusBadRequest, MsgMetadataIsInvalid)
+		}
+		metadataOpt = sql.Null[[]byte]{Valid: true, V: metadataBytes}
 	}
 
 	// Check if proof token is invalid or has expired and extract wallet address
@@ -104,7 +108,7 @@ func (ct AccountController) Create(c echo.Context) error {
 	}
 	_, err = ct.DB.ExecContext(c.Request().Context(),
 		"INSERT INTO accounts (uuid, company_uuid, wallet_address, metadata) VALUES (?, ?, ?, ?)",
-		accountUuid, companyUuid, walletAddress, req.Metadata,
+		accountUuid, companyUuid, walletAddress, metadataOpt,
 	)
 	if err != nil {
 		if sqlite_ext.HasErrCode(err, sqlite3.SQLITE_CONSTRAINT_UNIQUE) {

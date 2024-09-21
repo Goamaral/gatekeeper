@@ -30,7 +30,7 @@ func TestAccountController_Create(t *testing.T) {
 		s := server.NewServer(internal.NewTestInjector(t), server.Config{Env: "test"})
 		return func(t *testing.T) { testFn(t, s) }
 	}
-	sendReq := func(t *testing.T, s server.Server, apiKey, proofToken string, metadata []byte) *httptest.ResponseRecorder {
+	sendReq := func(t *testing.T, s server.Server, apiKey, proofToken string) *httptest.ResponseRecorder {
 		return test.SendTestRequest(
 			t, s, http.MethodPost, "/v1/accounts",
 			server.AccountController_CreateRequest{ApiKey: apiKey, ProofToken: proofToken, Metadata: metadata},
@@ -39,32 +39,23 @@ func TestAccountController_Create(t *testing.T) {
 
 	t.Run("Success", newTest(
 		func(t *testing.T, s server.Server) {
-			res := sendReq(t, s, test.ApiKey, newProofToken(t, s, walletAddress), metadata)
+			res := sendReq(t, s, test.ApiKey, newProofToken(t, s, walletAddress))
 			require.Equal(t, http.StatusNoContent, res.Code)
 		},
 	))
 
 	t.Run("ApiKeyInvalid", newTest(
 		func(t *testing.T, s server.Server) {
-			res := sendReq(t, s, "jiberish", newProofToken(t, s, walletAddress), metadata)
+			res := sendReq(t, s, "jiberish", newProofToken(t, s, walletAddress))
 			require.Equal(t, http.StatusBadRequest, res.Code)
 			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgApiKeyIsInvalid, body.Error)
 		},
 	))
 
-	t.Run("MetadataInvalid", newTest(
-		func(t *testing.T, s server.Server) {
-			res := sendReq(t, s, test.ApiKey, newProofToken(t, s, walletAddress), []byte("jiberish"))
-			require.Equal(t, http.StatusBadRequest, res.Code)
-			body := test.ReadBody[server.ErrorResponse](t, res.Body)
-			assert.Equal(t, server.MsgMetadataIsInvalid, body.Error)
-		},
-	))
-
 	t.Run("ProofTokenInvalid", newTest(
 		func(t *testing.T, s server.Server) {
-			res := sendReq(t, s, test.ApiKey, "jiberish", metadata)
+			res := sendReq(t, s, test.ApiKey, "jiberish")
 			require.Equal(t, http.StatusBadRequest, res.Code)
 			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgProofTokenIsInvalidOrExpired, body.Error)
@@ -79,7 +70,7 @@ func TestAccountController_Create(t *testing.T) {
 				time.Now().Add(-time.Minute),
 			)
 
-			res := sendReq(t, s, test.ApiKey, proofToken, metadata)
+			res := sendReq(t, s, test.ApiKey, proofToken)
 			require.Equal(t, http.StatusBadRequest, res.Code)
 			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgProofTokenIsInvalidOrExpired, body.Error)
@@ -91,7 +82,7 @@ func TestAccountController_Create(t *testing.T) {
 			proofToken, err := s.AccountCtrl.JwtProvider.GenerateSignedToken(jwt.RegisteredClaims{Subject: walletAddress})
 			require.NoError(t, err)
 
-			res := sendReq(t, s, test.ApiKey, proofToken, metadata)
+			res := sendReq(t, s, test.ApiKey, proofToken)
 			require.Equal(t, http.StatusBadRequest, res.Code)
 			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgProofTokenIsInvalidOrExpired, body.Error)
@@ -105,7 +96,7 @@ func TestAccountController_Create(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			res := sendReq(t, s, test.ApiKey, proofToken, metadata)
+			res := sendReq(t, s, test.ApiKey, proofToken)
 			require.Equal(t, http.StatusBadRequest, res.Code)
 			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgProofTokenIsInvalidOrExpired, body.Error)
@@ -114,7 +105,7 @@ func TestAccountController_Create(t *testing.T) {
 
 	t.Run("DuplicateWalletAddress", newTest(
 		func(t *testing.T, s server.Server) {
-			res := sendReq(t, s, test.ApiKey, newProofToken(t, s, test.WalletAddress), metadata)
+			res := sendReq(t, s, test.ApiKey, newProofToken(t, s, test.WalletAddress))
 			require.Equal(t, http.StatusUnprocessableEntity, res.Code)
 			body := test.ReadBody[server.ErrorResponse](t, res.Body)
 			assert.Equal(t, server.MsgAccountAlreadyExists, body.Error)

@@ -1,6 +1,6 @@
 module gatekeeper
 
-go 1.21
+go 1.22
 
 require (
 	braces.dev/errtrace v0.3.0
@@ -13,9 +13,9 @@ require (
 	github.com/gookit/validate v1.5.1
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/labstack/echo/v4 v4.11.3
-	github.com/labstack/gommon v0.4.0
 	github.com/samber/do v1.6.0
 	github.com/stretchr/testify v1.8.4
+	modernc.org/sqlite v1.23.1
 )
 
 require (
@@ -29,6 +29,7 @@ require (
 	github.com/gookit/goutil v0.6.12 // indirect
 	github.com/holiman/uint256 v1.2.3 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
+	github.com/labstack/gommon v0.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -46,6 +47,5 @@ require (
 	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.5.0 // indirect
-	modernc.org/sqlite v1.23.1 // indirect
 	olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3 // indirect
 )
