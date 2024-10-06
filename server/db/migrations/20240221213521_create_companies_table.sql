@@ -1,9 +1,8 @@
 -- migrate:up
 CREATE TABLE companies (
-  uuid CHAR(36) PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  api_key CHAR(48) NOT NULL,
-  admin_account_uuid CHAR(36)
+  api_key CHAR(48) NOT NULL
 );
 
 -- migrate:down

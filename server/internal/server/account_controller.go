@@ -10,7 +10,6 @@ import (
 
 	"braces.dev/errtrace"
 	"github.com/georgysavva/scany/sqlscan"
-	"github.com/google/uuid"
 	"github.com/gookit/validate"
 	"github.com/labstack/echo/v4"
 	"github.com/samber/do"
@@ -59,9 +58,9 @@ func (ct AccountController) Create(c echo.Context) error {
 	}
 
 	// Check if api key exists
-	var companyUuid string
-	err = sqlscan.Get(c.Request().Context(), ct.DB, &companyUuid,
-		"SELECT uuid FROM companies WHERE api_key = ?", req.ApiKey,
+	var companyId string
+	err = sqlscan.Get(c.Request().Context(), ct.DB, &companyId,
+		"SELECT id FROM companies WHERE api_key = ?", req.ApiKey,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -75,7 +74,7 @@ func (ct AccountController) Create(c echo.Context) error {
 	if req.Metadata != nil {
 		metadataBytes, err := json.Marshal(req.Metadata)
 		if err != nil {
-			// Can't think how this can happen
+			// This should never happend, because it should fail on request binding
 			return NewHTTPError(http.StatusBadRequest, MsgMetadataIsInvalid)
 		}
 		metadataOpt = sql.Null[[]byte]{Valid: true, V: metadataBytes}
@@ -102,13 +101,9 @@ func (ct AccountController) Create(c echo.Context) error {
 	}
 
 	// Create account
-	accountUuid, err := uuid.NewV7()
-	if err != nil {
-		return errtrace.Errorf("failed to generate account uuid: %w", err)
-	}
 	_, err = ct.DB.ExecContext(c.Request().Context(),
-		"INSERT INTO accounts (uuid, company_uuid, wallet_address, metadata) VALUES (?, ?, ?, ?)",
-		accountUuid, companyUuid, walletAddress, metadataOpt,
+		"INSERT INTO accounts (company_id, wallet_address, metadata) VALUES (?, ?, ?)",
+		companyId, walletAddress, metadataOpt,
 	)
 	if err != nil {
 		if sqlite_ext.HasErrCode(err, sqlite3.SQLITE_CONSTRAINT_UNIQUE) {

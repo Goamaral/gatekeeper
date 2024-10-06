@@ -1,10 +1,11 @@
 -- migrate:up
 CREATE TABLE accounts (
-  uuid CHAR(36) PRIMARY KEY,
-  company_uuid CHAR(36),
+  company_id INTEGER NOT NULL,
+  wallet_address CHAR(42) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  wallet_address CHAR(42) NOT NULL UNIQUE,
-  metadata JSON
+  metadata JSON,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  PRIMARY KEY (company_id, wallet_address)
 );
 
 -- migrate:down

@@ -100,7 +100,8 @@ type ChallengeController_VerifyRequest struct {
 }
 
 type ChallengeController_VerifyResponse struct {
-	ProofToken string `json:"proofToken"`
+	ProofToken    string `json:"proofToken"`
+	WalletAddress string `json:"walletAddress"`
 }
 
 const MsgChallengeDoesNotExistOrExpired = "Challenge does not exist or has expired"
@@ -172,6 +173,9 @@ func (ct ChallengeController) Verify(c echo.Context) error {
 	}
 
 	return errtrace.Wrap(
-		c.JSON(http.StatusOK, ChallengeController_VerifyResponse{ProofToken: proofToken}),
+		c.JSON(http.StatusOK, ChallengeController_VerifyResponse{
+			ProofToken:    proofToken,
+			WalletAddress: challenge.WalletAddress,
+		}),
 	)
 }

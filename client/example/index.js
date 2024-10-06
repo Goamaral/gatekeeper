@@ -47,13 +47,13 @@ async function issueChallenge(walletAddress) {
 /**
  * @param {string} challenge 
  * @param {string} signature 
- * @returns {Promise<string|null>}
+ * @returns {Promise<{walletAddress: string, proofToken: string}|null>}
  */
 async function verifyChallenge(challenge, signature) {
   const res = await fetch('http://localhost:3000/v1/challenges/verify', {
     method: 'POST',
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ challenge, signature }), // TODO: Use apiKey
+    body: JSON.stringify({ challenge, signature }),
   })
   if (res.status >= 500) {
     console.error(`Error (verifyChallenge):`, await res.json())
@@ -64,20 +64,20 @@ async function verifyChallenge(challenge, signature) {
     return null
   }
 
-  const { proofToken } = await res.json()
-  return proofToken
+  const { proofToken, walletAddress } = await res.json()
+  return { proofToken, walletAddress }
 }
 
 /**
  * @param {string} proofToken 
- * @param {string} email 
+ * @param {Record<string, any>} metadata
  * @returns {Promise<void>}
  */
-async function createAccount(proofToken, email) {
+async function createAccount(proofToken, metadata) {
   const res = await fetch('http://localhost:3000/v1/accounts', {
     method: 'POST',
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ apiKey: API_KEY, proofToken, metadata: { email } }),
+    body: JSON.stringify({ apiKey: API_KEY, proofToken, metadata }),
   })
   if (res.status >= 400) {
     console.error(`Error (createAccount):`, await res.json())
@@ -101,14 +101,14 @@ const server = http.createServer(async function (req, res) {
     POST: {
       '/auth/challenge': async () => sendJson({ challenge: await issueChallenge(req.body.walletAddress) }),
       '/auth/register': async () => {
-        // TODO: Get wallet address from verify challenge response
-        const proofToken = await verifyChallenge(req.body.challenge, req.body.signature)
-        if (!proofToken) return sendJson({ error: 'failed to verify challenge' }, UNAUTHORIZED)
+        const resVerifyChallenge = await verifyChallenge(req.body.challenge, req.body.signature)
+        if (!resVerifyChallenge) return sendJson({ error: 'failed to verify challenge' }, UNAUTHORIZED)
+        const { proofToken, walletAddress } = resVerifyChallenge
 
-        await createAccount(proofToken, req.body.email)
+        await createAccount(proofToken, { email: req.body.email })
 
         const newSessionId = crypto.randomBytes(20).toString('hex')
-        sessions[newSessionId] = { walletAddress: 'TODO' }
+        sessions[newSessionId] = { walletAddress }
         res.setHeader('Set-Cookie', `session=${newSessionId};`)
         sendStatus(NO_CONTENT)
       },
@@ -116,14 +116,12 @@ const server = http.createServer(async function (req, res) {
         const sessionId = getSessionId()
         if (authenticated(() => sessionId)) return sendStatus(NO_CONTENT)
 
-        // TODO: Get wallet address from verify challenge response
-        const proofToken = await verifyChallenge(req.body.challenge, req.body.signature)
-        if (!proofToken) return sendJson({ error: 'failed to verify challenge' }, UNAUTHORIZED)
-
-        // TODO: Check if account exists
+        const resVerifyChallenge = await verifyChallenge(req.body.challenge, req.body.signature)
+        if (!resVerifyChallenge) return sendJson({ error: 'failed to verify challenge' }, UNAUTHORIZED)
+        const { walletAddress } = resVerifyChallenge
 
         const newSessionId = crypto.randomBytes(20).toString('hex')
-        sessions[newSessionId] = { walletAddress: 'TODO' }
+        sessions[newSessionId] = { walletAddress }
         res.setHeader('Set-Cookie', `session=${newSessionId};`)
         sendStatus(NO_CONTENT)
       },

@@ -6,17 +6,17 @@ CREATE TABLE challenges (
   expired_at TIMESTAMP NOT NULL
 );
 CREATE TABLE companies (
-  uuid CHAR(36) PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  api_key CHAR(48) NOT NULL,
-  admin_account_uuid CHAR(36)
+  api_key CHAR(48) NOT NULL
 );
 CREATE TABLE accounts (
-  uuid CHAR(36) PRIMARY KEY,
-  company_uuid CHAR(36),
+  company_id INTEGER NOT NULL,
+  wallet_address CHAR(42) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  wallet_address CHAR(42) NOT NULL UNIQUE,
-  metadata JSON
+  metadata JSON,
+  FOREIGN KEY (company_id) REFERENCES companies(id),
+  PRIMARY KEY (company_id, wallet_address)
 );
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
