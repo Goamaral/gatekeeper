@@ -32,7 +32,7 @@ class HttpError extends Error {
 async function issueChallenge(walletAddress) {
   const res = await fetch('http://localhost:3000/v1/challenges/issue', {
     method: 'POST',
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Api-Key": API_KEY },
     body: JSON.stringify({ walletAddress }),
   })
   if (res.status >= 400) {
@@ -52,7 +52,7 @@ async function issueChallenge(walletAddress) {
 async function verifyChallenge(challenge, signature) {
   const res = await fetch('http://localhost:3000/v1/challenges/verify', {
     method: 'POST',
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Api-Key": API_KEY },
     body: JSON.stringify({ challenge, signature }),
   })
   if (res.status >= 500) {
