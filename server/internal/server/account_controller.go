@@ -3,14 +3,11 @@ package server
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"gatekeeper/pkg/jwt_provider"
 	"gatekeeper/pkg/sqlite_ext"
 	"net/http"
 
 	"braces.dev/errtrace"
-	"github.com/georgysavva/scany/sqlscan"
-	"github.com/gookit/validate"
 	"github.com/labstack/echo/v4"
 	"github.com/samber/do"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -27,46 +24,27 @@ func NewAccountController(echoGrp *echo.Group, i *do.Injector) AccountController
 		JwtProvider: do.MustInvoke[jwt_provider.Provider](i),
 	}
 
-	accounts := echoGrp.Group("/accounts")
+	accounts := echoGrp.Group("/accounts", newApiKeyMiddleware(i))
 	accounts.POST("", ct.Create)
 
 	return ct
 }
 
 type AccountController_CreateRequest struct {
-	ApiKey     string `json:"apiKey" validate:"required"`
 	ProofToken string `json:"proofToken" validate:"required"`
 	Metadata   any    `json:"metadata" validate:"-"`
 }
 
 const (
 	MsgMetadataIsInvalid            = "Metadata is invalid"
-	MsgApiKeyIsInvalid              = "Api key is invalid"
 	MsgProofTokenIsInvalidOrExpired = "Proof token is invalid or has expired"
 	MsgAccountAlreadyExists         = "Account already exists"
 )
 
 func (ct AccountController) Create(c echo.Context) error {
-	req := AccountController_CreateRequest{}
-	err := c.Bind(&req)
+	req, err := bindAndValidate[AccountController_CreateRequest](c)
 	if err != nil {
-		return ErrRequestMalformed
-	}
-	v := validate.Struct(req)
-	if !v.Validate() {
-		return NewValidationErrorResponse(v.Errors)
-	}
-
-	// Check if api key exists
-	var companyId string
-	err = sqlscan.Get(c.Request().Context(), ct.DB, &companyId,
-		"SELECT id FROM companies WHERE api_key = ?", req.ApiKey,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return NewHTTPError(http.StatusBadRequest, MsgApiKeyIsInvalid)
-		}
-		return errtrace.Errorf("failed to check if api key exists: %w", err)
+		return err
 	}
 
 	// Unmarshal metadata
@@ -101,6 +79,7 @@ func (ct AccountController) Create(c echo.Context) error {
 	}
 
 	// Create account
+	companyId := getContextValue[string](c, ContextKey_CompanyId)
 	_, err = ct.DB.ExecContext(c.Request().Context(),
 		"INSERT INTO accounts (company_id, wallet_address, metadata) VALUES (?, ?, ?)",
 		companyId, walletAddress, metadataOpt,
@@ -114,3 +93,13 @@ func (ct AccountController) Create(c echo.Context) error {
 
 	return errtrace.Wrap(c.NoContent(http.StatusNoContent))
 }
+
+// type AccountController_GetRequest struct {
+// }
+
+// func (ct AccountController) Get(c echo.Context) error {
+// 	req, err := bindAndValidate[AccountController_GetRequest](c)
+// 	if err != nil {
+// 		return err
+// 	}
+// }

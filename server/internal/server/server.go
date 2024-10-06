@@ -121,3 +121,16 @@ func (s Server) Serve() error {
 	log.Printf("Http server listening on %s", addr)
 	return errtrace.Wrap(s.EchoInst.Server.Serve(lst))
 }
+
+func bindAndValidate[R any](c echo.Context) (R, error) {
+	var req R
+	err := c.Bind(&req)
+	if err != nil {
+		return req, ErrRequestMalformed
+	}
+	v := validate.Struct(req)
+	if !v.Validate() {
+		return req, NewValidationErrorResponse(v.Errors)
+	}
+	return req, nil
+}

@@ -18,7 +18,7 @@ import (
 func TestChallengeController_Issue(t *testing.T) {
 	s := server.NewServer(internal.NewTestInjector(t), server.Config{Env: "test"})
 	res := test.SendTestRequest(
-		t, s, http.MethodPost, "/v1/challenges/issue",
+		t, s, http.MethodPost, "/v1/challenges/issue", map[string]string{"Api-Key": test.ApiKey},
 		server.ChallengeController_IssueRequest{WalletAddress: "WalletAddress"},
 	)
 	require.Equal(t, http.StatusOK, res.Code)
@@ -57,7 +57,7 @@ func TestChallengeController_Verify(t *testing.T) {
 
 	sendReq := func(t *testing.T, s server.Server, challenge, signature string) *httptest.ResponseRecorder {
 		return test.SendTestRequest(
-			t, s, http.MethodPost, "/v1/challenges/verify",
+			t, s, http.MethodPost, "/v1/challenges/verify", map[string]string{"Api-Key": test.ApiKey},
 			server.ChallengeController_VerifyRequest{Challenge: challenge, Signature: signature},
 		)
 	}

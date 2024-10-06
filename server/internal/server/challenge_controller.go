@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/georgysavva/scany/sqlscan"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/gookit/validate"
 	"github.com/labstack/echo/v4"
 	"github.com/samber/do"
 )
@@ -37,7 +36,7 @@ func NewChallengeController(echoGrp *echo.Group, i *do.Injector) ChallengeContro
 		JwtProvider: do.MustInvoke[jwt_provider.Provider](i),
 	}
 
-	challenges := echoGrp.Group("/challenges")
+	challenges := echoGrp.Group("/challenges", newApiKeyMiddleware(i))
 	challenges.POST("/issue", ct.Issue)
 	challenges.POST("/verify", ct.Verify)
 
@@ -62,14 +61,9 @@ func GenerateChallengeToken() (string, error) {
 }
 
 func (ct ChallengeController) Issue(c echo.Context) error {
-	req := ChallengeController_IssueRequest{}
-	err := c.Bind(&req)
+	req, err := bindAndValidate[ChallengeController_IssueRequest](c)
 	if err != nil {
-		return ErrRequestMalformed
-	}
-	v := validate.Struct(req)
-	if !v.Validate() {
-		return NewValidationErrorResponse(v.Errors)
+		return err
 	}
 
 	// Generate challenge token
@@ -108,14 +102,9 @@ const MsgChallengeDoesNotExistOrExpired = "Challenge does not exist or has expir
 const MsgSignatureInvalid = "Signature is invalid for given challenge"
 
 func (ct ChallengeController) Verify(c echo.Context) error {
-	req := ChallengeController_VerifyRequest{}
-	err := c.Bind(&req)
+	req, err := bindAndValidate[ChallengeController_VerifyRequest](c)
 	if err != nil {
-		return ErrRequestMalformed
-	}
-	v := validate.Struct(req)
-	if !v.Validate() {
-		return NewValidationErrorResponse(v.Errors)
+		return err
 	}
 
 	// Extract challenge token and get associated wallet address

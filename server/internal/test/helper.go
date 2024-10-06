@@ -17,12 +17,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func SendTestRequest(t *testing.T, s server.Server, method, path string, body any) *httptest.ResponseRecorder {
+func SendTestRequest(t *testing.T, s server.Server, method, path string, headers map[string]string, body any) *httptest.ResponseRecorder {
 	bodyBytes, err := json.Marshal(body)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(method, path, bytes.NewReader(bodyBytes))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 
 	res := httptest.NewRecorder()
 	s.EchoInst.ServeHTTP(res, req)

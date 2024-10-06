@@ -76,8 +76,8 @@ async function verifyChallenge(challenge, signature) {
 async function createAccount(proofToken, metadata) {
   const res = await fetch('http://localhost:3000/v1/accounts', {
     method: 'POST',
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ apiKey: API_KEY, proofToken, metadata }),
+    headers: { "Content-Type": "application/json", "Api-Key": API_KEY },
+    body: JSON.stringify({ proofToken, metadata }),
   })
   if (res.status >= 400) {
     console.error(`Error (createAccount):`, await res.json())
@@ -95,6 +95,10 @@ const server = http.createServer(async function (req, res) {
       '/index.css': () => sendFile('public/index.css', 'text/css'),
       '/auth/user': () => {
         if (!authenticated()) return sendJson({ error: 'user not logged in' }, UNAUTHORIZED)
+
+        // TODO: Get session id from cookie
+        // TODO: Get account metadata
+
         sendJson({ user: { id: 2023, name: 'web3' } })
       }
     },
