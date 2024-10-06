@@ -13,25 +13,25 @@ import (
 	"github.com/samber/do"
 )
 
-func panicOnErr(err error) {
+func exitOnErr(msg string, err error) {
 	if err != nil {
-		slog.Error("%s", err)
+		slog.With("error", err.Error()).Error(msg)
 		os.Exit(1)
 	}
 }
 
 func main() {
-	injector := internal.NewInjector()
-	defer injector.Shutdown()
+	i := internal.NewInjector()
+	defer i.Shutdown()
 
 	s := gocron.NewScheduler(time.UTC)
 
-	_, err := s.Every(30).Minutes().Name("DeleteExpiredChallengesJob").Do(DeleteExpiredChallengesJob, injector)
-	panicOnErr(err)
+	_, err := s.Every(30).Minutes().Name("DeleteExpiredChallengesJob").Do(DeleteExpiredChallengesJob, i)
+	exitOnErr("failed to schedule DeleteExpiredChallengesJob", err)
 
 	s.RegisterEventListeners(
 		gocron.WhenJobReturnsError(func(jobName string, err error) {
-			slog.Error("%s: %s", jobName, err)
+			slog.With("job", jobName).Error(err.Error())
 		}),
 	)
 

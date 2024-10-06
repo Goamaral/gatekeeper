@@ -16,14 +16,14 @@ import (
 )
 
 func NewInjector() *do.Injector {
-	injector := do.New()
+	i := do.New()
 
-	do.Provide(injector, func(_ *do.Injector) (*sql.DB, error) {
+	do.Provide(i, func(_ *do.Injector) (*sql.DB, error) {
 		// TODO: Implement do.Shutdownable and do.Healthcheckable
 		return sql.Open("sqlite", helper.RelativePath("../db/database.sqlite"))
 	})
 
-	do.Provide(injector, func(i *do.Injector) (jwt_provider.Provider, error) {
+	do.Provide(i, func(i *do.Injector) (jwt_provider.Provider, error) {
 		privKeyFile, err := os.Open(fs.RelativePath("../secrets/ecdsa"))
 		if err != nil {
 			return jwt_provider.Provider{}, fmt.Errorf("failed to open private key file: %w", err)
@@ -35,13 +35,13 @@ func NewInjector() *do.Injector {
 		return jwt_provider.NewProvider(privKeyFile, pubKeyFile)
 	})
 
-	return injector
+	return i
 }
 
 func NewTestInjector(t *testing.T) *do.Injector {
-	injector := NewInjector()
+	i := NewInjector()
 
-	do.Override(injector, func(_ *do.Injector) (*sql.DB, error) {
+	do.Override(i, func(_ *do.Injector) (*sql.DB, error) {
 		// TODO: Implement do.Shutdownable and do.Healthcheckable
 		db, err := sql.Open("sqlite", ":memory:")
 		if err != nil {
@@ -63,7 +63,7 @@ func NewTestInjector(t *testing.T) *do.Injector {
 		return db, nil
 	})
 
-	do.Override(injector, jwt_provider.InjectTestProvider(t))
+	do.Override(i, jwt_provider.InjectTestProvider(t))
 
-	return injector
+	return i
 }

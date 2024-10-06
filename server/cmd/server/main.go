@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"gatekeeper/internal"
 	"gatekeeper/internal/server"
 	"log/slog"
@@ -12,20 +11,20 @@ import (
 
 func exitOnErr(msg string, err error) {
 	if err != nil {
-		slog.Error("%s", fmt.Errorf("%s: %w", msg, err))
+		slog.With("error", err.Error()).Error(msg)
 		os.Exit(1)
 	}
 }
 
 func main() {
-	injector := internal.NewInjector()
-	defer injector.Shutdown()
+	i := internal.NewInjector()
+	defer i.Shutdown()
 
-	var serverConfig server.Config
-	err := cleanenv.ReadEnv(&serverConfig)
+	var cfg server.Config
+	err := cleanenv.ReadEnv(&cfg)
 	exitOnErr("failed to read server config from env: %s", err)
 
-	s := server.NewServer(injector, serverConfig)
+	s := server.NewServer(i, cfg)
 	err = s.Serve()
 	exitOnErr("failed to serve http server", err)
 }

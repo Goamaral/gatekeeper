@@ -106,7 +106,7 @@ func (ct AccountController) Create(c echo.Context) error {
 		companyId, walletAddress, metadataOpt,
 	)
 	if err != nil {
-		if sqlite_ext.HasErrCode(err, sqlite3.SQLITE_CONSTRAINT_UNIQUE) {
+		if sqlite_ext.HasErrCode(err, sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY) {
 			return NewHTTPError(http.StatusUnprocessableEntity, MsgAccountAlreadyExists)
 		}
 		return errtrace.Errorf("failed to create account: %w", err)
