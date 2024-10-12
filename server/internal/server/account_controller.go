@@ -3,14 +3,22 @@ package server
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"gatekeeper/pkg/jwt_provider"
 	"gatekeeper/pkg/sqlite_ext"
 	"net/http"
 
 	"braces.dev/errtrace"
+	"github.com/georgysavva/scany/sqlscan"
 	"github.com/labstack/echo/v4"
 	"github.com/samber/do"
 	sqlite3 "modernc.org/sqlite/lib"
+)
+
+const (
+	MsgMetadataIsInvalid    = "Metadata is invalid"
+	MsgAccountAlreadyExists = "Account already exists"
+	MsgAccountDoesNotExist  = "Account does not exist"
 )
 
 type AccountController struct {
@@ -24,22 +32,17 @@ func NewAccountController(echoGrp *echo.Group, i *do.Injector) AccountController
 		JwtProvider: do.MustInvoke[jwt_provider.Provider](i),
 	}
 
-	accounts := echoGrp.Group("/accounts", newApiKeyMiddleware(i))
+	accounts := echoGrp.Group("/accounts", newApiKeyMiddleware(i), newProofTokenyMiddleware(i))
 	accounts.POST("", ct.Create)
+	accounts.GET("/:walletAddress/metadata", ct.GetMetadata)
 
 	return ct
 }
 
 type AccountController_CreateRequest struct {
-	ProofToken string `json:"proofToken" validate:"required"`
-	Metadata   any    `json:"metadata" validate:"-"`
+	WalletAddress string         `json:"walletAddress" validate:"required"`
+	Metadata      map[string]any `json:"metadata" validate:"-"`
 }
-
-const (
-	MsgMetadataIsInvalid            = "Metadata is invalid"
-	MsgProofTokenIsInvalidOrExpired = "Proof token is invalid or has expired"
-	MsgAccountAlreadyExists         = "Account already exists"
-)
 
 func (ct AccountController) Create(c echo.Context) error {
 	req, err := bindAndValidate[AccountController_CreateRequest](c)
@@ -58,31 +61,14 @@ func (ct AccountController) Create(c echo.Context) error {
 		metadataOpt = sql.Null[[]byte]{Valid: true, V: metadataBytes}
 	}
 
-	// Check if proof token is invalid or has expired and extract wallet address
-	claims, err := ct.JwtProvider.GetClaims(req.ProofToken)
-	if err != nil {
-		return NewHTTPError(http.StatusBadRequest, MsgProofTokenIsInvalidOrExpired)
-	}
-	jwtExpiredAt, err := claims.GetExpirationTime()
-	if err != nil {
-		return errtrace.Errorf("failed to get expiration time from claims: %w", err)
-	}
-	if jwtExpiredAt == nil {
-		return NewHTTPError(http.StatusBadRequest, MsgProofTokenIsInvalidOrExpired)
-	}
-	walletAddress, err := claims.GetSubject()
-	if err != nil {
-		return errtrace.Errorf("failed to get subject from claims: %w", err)
-	}
-	if len(walletAddress) == 0 {
-		return NewHTTPError(http.StatusBadRequest, MsgProofTokenIsInvalidOrExpired)
-	}
-
 	// Create account
+	if getContextValue[string](c, ContextKey_WalletAddress) != req.WalletAddress {
+		return NewHTTPError(http.StatusBadRequest, MsgProofTokenIsInvalidOrExpired)
+	}
 	companyId := getContextValue[string](c, ContextKey_CompanyId)
 	_, err = ct.DB.ExecContext(c.Request().Context(),
 		"INSERT INTO accounts (company_id, wallet_address, metadata) VALUES (?, ?, ?)",
-		companyId, walletAddress, metadataOpt,
+		companyId, req.WalletAddress, metadataOpt,
 	)
 	if err != nil {
 		if sqlite_ext.HasErrCode(err, sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY) {
@@ -94,12 +80,34 @@ func (ct AccountController) Create(c echo.Context) error {
 	return errtrace.Wrap(c.NoContent(http.StatusNoContent))
 }
 
-// type AccountController_GetRequest struct {
-// }
+type AccountController_GetMetadataResponse struct {
+	Metadata map[string]any `json:"metadata"`
+}
 
-// func (ct AccountController) Get(c echo.Context) error {
-// 	req, err := bindAndValidate[AccountController_GetRequest](c)
-// 	if err != nil {
-// 		return err
-// 	}
-// }
+func (ct AccountController) GetMetadata(c echo.Context) error {
+	walletAddress := c.Param("walletAddress")
+
+	if getContextValue[string](c, ContextKey_WalletAddress) != walletAddress {
+		return NewHTTPError(http.StatusBadRequest, MsgProofTokenIsInvalidOrExpired)
+	}
+	companyId := getContextValue[string](c, ContextKey_CompanyId)
+
+	var metadataBytes []byte
+	err := sqlscan.Get(c.Request().Context(), ct.DB, &metadataBytes,
+		"SELECT metadata FROM accounts WHERE company_id = ? AND wallet_address = ? LIMIT 1", companyId, walletAddress,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return errtrace.Errorf("failed to get account metadata: %w", err)
+	}
+
+	metadata := map[string]any{}
+	err = json.Unmarshal(metadataBytes, &metadata)
+	if err != nil {
+		return errtrace.Errorf("failed to unmarshal metadata: %w", err)
+	}
+
+	return c.JSON(http.StatusOK, AccountController_GetMetadataResponse{Metadata: metadata})
+}

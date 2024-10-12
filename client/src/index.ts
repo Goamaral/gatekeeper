@@ -1,6 +1,5 @@
 
 import { providers } from 'ethers'
-import axios from 'axios'
 
 declare global {
   interface Window {
@@ -9,10 +8,10 @@ declare global {
 }
 
 interface Config {
-  issueChallenge: (walletAddress: string) => Promise<string>
-  register: (email: string, walletAddress: string, signedChallenge: string) => Promise<void>
-  login: (walletAddress: string, signedChallenge: string) => Promise<void>
-  logout: () => Promise<void>
+  issueChallenge: typeof issueChallenge
+  register: typeof register
+  login: typeof login
+  logout: typeof logout
 }
 
 export class MetamaskNotInstalledError extends Error {
@@ -21,21 +20,13 @@ export class MetamaskNotInstalledError extends Error {
   }
 }
 
-async function issueChallenge(walletAddress: string): Promise<string> {
-  const { challenge } = (await axios.post('/auth/challenge', { walletAddress })).data
-  return challenge
-}
+export class HttpError extends Error {
+  status: number
 
-async function register(email: string, challenge: string, signature: string): Promise<void> {
-  await axios.post('/auth/register', { email, challenge, signature })
-}
-
-async function login(challenge: string, signature: string): Promise<void> {
-  await axios.post('/auth/login', { challenge, signature })
-}
-
-async function logout(): Promise<void> {
-  await axios.delete('/auth/logout')
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+  }
 }
 
 export class Gatekeeper {
@@ -79,14 +70,14 @@ export class Gatekeeper {
     const walletAddress = await this.getWalletAddress()
     const challenge = await this.config.issueChallenge(walletAddress)
     const signature = await this.signer.signMessage(challenge)
-    await this.config.register(email, challenge, signature)
+    await this.config.register(walletAddress, challenge, signature, email)
   }
 
   async login(): Promise<void> {
     const walletAddress = await this.getWalletAddress()
     const challenge = await this.config.issueChallenge(walletAddress)
     const signature = await this.signer.signMessage(challenge)
-    await this.config.login(challenge, signature)
+    await this.config.login(walletAddress, challenge, signature)
   }
 
   async logout(): Promise<void> {
@@ -95,3 +86,35 @@ export class Gatekeeper {
 }
 
 export default Gatekeeper
+
+/* PRIVATE */
+async function sendPost<T>(url: string, body: any) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  if (res.status >= 400) throw new HttpError(res.status, (await res.json()).error)
+  return (await res.json()) as T
+}
+
+async function sendDelete(url: string,) {
+  const res = await fetch(url, { method: 'DELETE' })
+  if (res.status >= 400) throw new HttpError(res.status, (await res.json()).error)
+}
+
+async function issueChallenge(walletAddress: string) {
+  return (await sendPost<{ challenge: string }>('/auth/challenge', { walletAddress })).challenge
+}
+
+async function register(walletAddress: string, challenge: string, signature: string, email: string) {
+  await sendPost('/auth/register', { walletAddress, email, challenge, signature })
+}
+
+async function login(walletAddress: string, challenge: string, signature: string) {
+  await sendPost('/auth/login', { walletAddress, challenge, signature })
+}
+
+async function logout() {
+  await sendDelete('/auth/logout')
+}

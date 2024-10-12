@@ -1,6 +1,7 @@
 import http from 'node:http'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
+import cookie from 'cookie'
 
 const PORT = 4000
 const API_KEY = "018df6ccab907592ae2da5c3dd9a79f3AFF3MAUaKHt9DVuBBi4Jzw"
@@ -36,8 +37,9 @@ async function issueChallenge(walletAddress) {
     body: JSON.stringify({ walletAddress }),
   })
   if (res.status >= 400) {
-    console.error(`Error (issueChallenge):`, await res.json())
-    throw new HttpError(res.status, res.statusText)
+    const { error } = await res.json()
+    console.error(`Error (issueChallenge):`, error)
+    throw new HttpError(res.status, error)
   }
 
   const { challenge } = await res.json()
@@ -55,13 +57,10 @@ async function verifyChallenge(challenge, signature) {
     headers: { "Content-Type": "application/json", "Api-Key": API_KEY },
     body: JSON.stringify({ challenge, signature }),
   })
-  if (res.status >= 500) {
-    console.error(`Error (verifyChallenge):`, await res.json())
-    throw new HttpError(res.status, res.statusText)
-  }
   if (res.status >= 400) {
-    console.warn(`Warn (verifyChallenge):`, await res.json())
-    return null
+    const { error } = await res.json()
+    console.error(`Error (verifyChallenge):`, error)
+    throw new HttpError(res.status, error)
   }
 
   const { proofToken, walletAddress } = await res.json()
@@ -69,20 +68,40 @@ async function verifyChallenge(challenge, signature) {
 }
 
 /**
+ * @param {string} walletAddress 
  * @param {string} proofToken 
  * @param {Record<string, any>} metadata
  * @returns {Promise<void>}
  */
-async function createAccount(proofToken, metadata) {
+async function createAccount(walletAddress, proofToken, metadata) {
   const res = await fetch('http://localhost:3000/v1/accounts', {
     method: 'POST',
-    headers: { "Content-Type": "application/json", "Api-Key": API_KEY },
-    body: JSON.stringify({ proofToken, metadata }),
+    headers: { "Content-Type": "application/json", "Api-Key": API_KEY, "Proof-Token": proofToken },
+    body: JSON.stringify({ walletAddress, metadata }),
   })
   if (res.status >= 400) {
-    console.error(`Error (createAccount):`, await res.json())
-    throw new HttpError(res.status, res.statusText)
+    const { error } = await res.json()
+    console.error(`Error (createAccount):`, error)
+    throw new HttpError(res.status, error)
   }
+}
+
+/**
+ * @param {string} walletAddress 
+ * @param {string} proofToken 
+ * @returns {Promise<Record<string, any>>} metadata
+ */
+async function getAccountMetadata(walletAddress, proofToken) {
+  const res = await fetch(`http://localhost:3000/v1/accounts/${walletAddress}/metadata`, {
+    method: 'GET',
+    headers: { "Content-Type": "application/json", "Api-Key": API_KEY, "Proof-Token": proofToken },
+  })
+  if (res.status >= 400) {
+    const { error } = await res.json()
+    console.error(`Error (getAccountMetadata):`, error)
+    throw new HttpError(res.status, error)
+  }
+  return (await res.json()).metadata
 }
 
 const server = http.createServer(async function (req, res) {
@@ -93,47 +112,49 @@ const server = http.createServer(async function (req, res) {
       '/': () => sendFile('public/index.html', 'text/html'),
       '/index.js': () => sendFile('public/index.js', 'text/javascript'),
       '/index.css': () => sendFile('public/index.css', 'text/css'),
-      '/auth/user': () => {
-        if (!authenticated()) return sendJson({ error: 'user not logged in' }, UNAUTHORIZED)
-
-        // TODO: Get session id from cookie
-        // TODO: Get account metadata
-
-        sendJson({ user: { id: 2023, name: 'web3' } })
+      '/auth/user': async () => {
+        const sessionId = getSessionId()
+        if (!authenticated(() => sessionId)) return sendJson({ error: 'user not logged in' }, UNAUTHORIZED)
+        const session = sessions[sessionId]
+        return sendJson({ user: session.user })
       }
     },
     POST: {
       '/auth/challenge': async () => sendJson({ challenge: await issueChallenge(req.body.walletAddress) }),
       '/auth/register': async () => {
-        const resVerifyChallenge = await verifyChallenge(req.body.challenge, req.body.signature)
+        const { walletAddress, challenge, signature, email } = req.body
+        const resVerifyChallenge = await verifyChallenge(challenge, signature)
         if (!resVerifyChallenge) return sendJson({ error: 'failed to verify challenge' }, UNAUTHORIZED)
-        const { proofToken, walletAddress } = resVerifyChallenge
+        const { proofToken } = resVerifyChallenge
 
-        await createAccount(proofToken, { email: req.body.email })
+        const user = { email }
+        await createAccount(walletAddress, proofToken, user)
 
         const newSessionId = crypto.randomBytes(20).toString('hex')
-        sessions[newSessionId] = { walletAddress }
-        res.setHeader('Set-Cookie', `session=${newSessionId};`)
+        sessions[newSessionId] = { walletAddress, user }
+        res.setHeader('Set-Cookie', cookie.serialize("session", newSessionId))
         sendStatus(NO_CONTENT)
       },
       '/auth/login': async () => {
         const sessionId = getSessionId()
         if (authenticated(() => sessionId)) return sendStatus(NO_CONTENT)
 
-        const resVerifyChallenge = await verifyChallenge(req.body.challenge, req.body.signature)
+        const { walletAddress, challenge, signature } = req.body
+        const resVerifyChallenge = await verifyChallenge(challenge, signature)
         if (!resVerifyChallenge) return sendJson({ error: 'failed to verify challenge' }, UNAUTHORIZED)
-        const { walletAddress } = resVerifyChallenge
+        const { proofToken } = resVerifyChallenge
+
+        const user = await getAccountMetadata(walletAddress, proofToken)
 
         const newSessionId = crypto.randomBytes(20).toString('hex')
-        sessions[newSessionId] = { walletAddress }
-        res.setHeader('Set-Cookie', `session=${newSessionId};`)
+        sessions[newSessionId] = { walletAddress, user }
+        res.setHeader('Set-Cookie', cookie.serialize("session", newSessionId))
         sendStatus(NO_CONTENT)
       },
     },
     DELETE: {
       '/auth/logout': () => {
-        const sessionId = getSessionId()
-        delete sessions[sessionId]
+        delete sessions[getSessionId()]
         res.setHeader('Set-Cookie', 'session=')
         sendStatus(NO_CONTENT)
       }
@@ -176,14 +197,7 @@ const server = http.createServer(async function (req, res) {
    * @returns {string|undefined}
    * */
   function getSessionId() {
-    if (req.headers.cookie === undefined) return undefined
-
-    let sessionId
-    req.headers.cookie.split('; ').forEach(kv => {
-      const [k, v] = kv.split('=')
-      if (k === 'session') sessionId = v
-    })
-    return sessionId
+    return cookie.parse(req.headers.cookie)["session"]
   }
 
   /**
@@ -213,7 +227,7 @@ const server = http.createServer(async function (req, res) {
 
   function authenticated(getSessionIdFn = getSessionId) {
     const sessionId = getSessionIdFn()
-    return !!sessionId && sessions[sessionId]
+    return !!sessionId && !!sessions[sessionId]
   }
 })
 

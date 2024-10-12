@@ -24,6 +24,10 @@ type HTTPError struct {
 }
 
 func (e HTTPError) Error() string {
+	if e.Err == nil {
+		return http.StatusText(e.Code)
+	}
+
 	switch err := e.Err.(type) {
 	case error:
 		return err.Error()
@@ -36,7 +40,8 @@ func (e HTTPError) Error() string {
 	}
 }
 
-var ErrRequestMalformed = NewHTTPError(http.StatusBadRequest, "Request malformed")
+var ErrBadRequest = NewHTTPError(http.StatusBadRequest, nil)
+var ErrNotFound = NewHTTPError(http.StatusNotFound, nil)
 
 func NewValidationErrorResponse(errs validate.Errors) HTTPError {
 	return NewHTTPError(http.StatusBadRequest, errs)
@@ -126,7 +131,7 @@ func bindAndValidate[R any](c echo.Context) (R, error) {
 	var req R
 	err := c.Bind(&req)
 	if err != nil {
-		return req, ErrRequestMalformed
+		return req, ErrBadRequest
 	}
 	v := validate.Struct(req)
 	if !v.Validate() {
