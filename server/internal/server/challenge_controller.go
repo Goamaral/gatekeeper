@@ -36,7 +36,7 @@ func NewChallengeController(echoGrp *echo.Group, i *do.Injector) ChallengeContro
 		JwtProvider: do.MustInvoke[jwt_provider.Provider](i),
 	}
 
-	challenges := echoGrp.Group("/challenges", newApiKeyMiddleware(i))
+	challenges := echoGrp.Group("/challenges", NewApiKeyMiddleware(i))
 	challenges.POST("/issue", ct.Issue)
 	challenges.POST("/verify", ct.Verify)
 

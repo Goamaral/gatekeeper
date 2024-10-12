@@ -58,16 +58,16 @@ type Config struct {
 
 type Server struct {
 	Config        Config
-	EchoInst      *echo.Echo
+	Echo          *echo.Echo
 	ChallengeCtrl ChallengeController
 	AccountCtrl   AccountController
 }
 
 func NewServer(i *do.Injector, config Config) Server {
-	echoInst := echo.New()
-	echoInst.Use(middleware.Logger())
-	echoInst.Use(middleware.Recover())
-	echoInst.HTTPErrorHandler = func(err error, c echo.Context) {
+	e := echo.New()
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+	e.HTTPErrorHandler = func(err error, c echo.Context) {
 		if c.Response().Committed {
 			return
 		}
@@ -98,20 +98,20 @@ func NewServer(i *do.Injector, config Config) Server {
 				err = c.JSON(httpErr.Code, msg)
 			}
 			if err != nil {
-				echoInst.Logger.Error(err)
+				e.Logger.Error(err)
 			}
 		}
 
 		if httpErr.Code == http.StatusInternalServerError {
-			echoInst.Logger.Error(httpErr)
+			e.Logger.Error(httpErr)
 		}
 	}
 
-	v1 := echoInst.Group("/v1")
+	v1 := e.Group("/v1")
 
 	return Server{
 		Config:        config,
-		EchoInst:      echoInst,
+		Echo:          e,
 		ChallengeCtrl: NewChallengeController(v1, i),
 		AccountCtrl:   NewAccountController(v1, i),
 	}
@@ -124,7 +124,7 @@ func (s Server) Serve() error {
 		return errtrace.Errorf("failed to listen to tcp port on %s: %w", addr, err)
 	}
 	log.Printf("Http server listening on %s", addr)
-	return errtrace.Wrap(s.EchoInst.Server.Serve(lst))
+	return errtrace.Wrap(s.Echo.Server.Serve(lst))
 }
 
 func bindAndValidate[R any](c echo.Context) (R, error) {

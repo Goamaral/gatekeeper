@@ -17,7 +17,7 @@ const (
 	MsgProofTokenIsInvalidOrExpired = "Proof token is invalid or has expired"
 )
 
-func newApiKeyMiddleware(i *do.Injector) echo.MiddlewareFunc {
+func NewApiKeyMiddleware(i *do.Injector) echo.MiddlewareFunc {
 	db := do.MustInvoke[*sql.DB](i)
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -25,7 +25,7 @@ func newApiKeyMiddleware(i *do.Injector) echo.MiddlewareFunc {
 			apiKey := c.Request().Header.Get("Api-Key")
 
 			// Check if api key exists and extract company id
-			var companyId string
+			var companyId uint
 			err := sqlscan.Get(c.Request().Context(), db, &companyId,
 				"SELECT id FROM companies WHERE api_key = ?", apiKey,
 			)
@@ -43,7 +43,7 @@ func newApiKeyMiddleware(i *do.Injector) echo.MiddlewareFunc {
 	}
 }
 
-func newProofTokenyMiddleware(i *do.Injector) echo.MiddlewareFunc {
+func NewProofTokenMiddleware(i *do.Injector) echo.MiddlewareFunc {
 	jwtProvider := do.MustInvoke[jwt_provider.Provider](i)
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -51,13 +51,6 @@ func newProofTokenyMiddleware(i *do.Injector) echo.MiddlewareFunc {
 			// Check if proof token is invalid or has expired and extract wallet address
 			claims, err := jwtProvider.GetClaims(c.Request().Header.Get("Proof-Token"))
 			if err != nil {
-				return NewHTTPError(http.StatusBadRequest, MsgProofTokenIsInvalidOrExpired)
-			}
-			jwtExpiredAt, err := claims.GetExpirationTime()
-			if err != nil {
-				return errtrace.Errorf("failed to get expiration time from claims: %w", err)
-			}
-			if jwtExpiredAt == nil {
 				return NewHTTPError(http.StatusBadRequest, MsgProofTokenIsInvalidOrExpired)
 			}
 			walletAddress, err := claims.GetSubject()
